@@ -70,3 +70,74 @@ export async function getStats(req, res, next) {
   }
 }
 
+export async function getPendingRooms(req, res, next) {
+  try {
+    const rooms = await prisma.room.findMany({
+      where: { status: 'PENDING' },
+      include: {
+        owner: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const transformed = rooms.map(r => ({
+      ...r,
+      images: Array.isArray(r.images) ? r.images.map(f => `${baseUrl}/uploads/${f}`) : [],
+    }));
+
+    return res.json(transformed);
+  } catch (err) {
+    console.error('[adminController] getPendingRooms error', err);
+    return next(err);
+  }
+}
+
+export async function approveRoom(req, res, next) {
+  try {
+    const { roomId } = req.params;
+    const room = await prisma.room.update({
+      where: { id: parseInt(roomId) },
+      data: { status: 'APPROVED' },
+    });
+
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const transformed = {
+      ...room,
+      images: Array.isArray(room.images) ? room.images.map(f => `${baseUrl}/uploads/${f}`) : [],
+    };
+
+    return res.json({ message: 'Room approved', room: transformed });
+  } catch (err) {
+    console.error('[adminController] approveRoom error', err);
+    return next(err);
+  }
+}
+
+export async function rejectRoom(req, res, next) {
+  try {
+    const { roomId } = req.params;
+    const room = await prisma.room.update({
+      where: { id: parseInt(roomId) },
+      data: { status: 'REJECTED' },
+    });
+
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const transformed = {
+      ...room,
+      images: Array.isArray(room.images) ? room.images.map(f => `${baseUrl}/uploads/${f}`) : [],
+    };
+
+    return res.json({ message: 'Room rejected', room: transformed });
+  } catch (err) {
+    console.error('[adminController] rejectRoom error', err);
+    return next(err);
+  }
+}
+

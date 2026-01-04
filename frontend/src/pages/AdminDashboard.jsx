@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getPendingOwners, approveOwner, rejectOwner, getStats } from '../services/adminService';
+import { getPendingOwners, approveOwner, rejectOwner, getStats, getPendingRooms, approveRoom, rejectRoom } from '../services/adminService';
 import { signout } from '../services/authService';
 import { clearAuth, getUser } from '../utils/auth';
 import { Users, Home, Calendar, Clock } from 'lucide-react';
@@ -10,6 +10,7 @@ const AdminDashboard = () => {
   const user = getUser();
   const [pendingOwners, setPendingOwners] = useState([]);
   const [stats, setStats] = useState(null);
+  const [pendingRooms, setPendingRooms] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -20,8 +21,10 @@ const AdminDashboard = () => {
     try {
       const ownersRes = await getPendingOwners();
       const statsRes = await getStats();
+      const roomsRes = await getPendingRooms();
       setPendingOwners(ownersRes.data);
       setStats(statsRes.data);
+      setPendingRooms(roomsRes.data);
     } catch (err) {
       console.error(err);
     } finally {
@@ -44,6 +47,24 @@ const AdminDashboard = () => {
       loadData();
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to reject owner');
+    }
+  };
+
+  const handleApproveRoom = async (roomId) => {
+    try {
+      await approveRoom(roomId);
+      loadData();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to approve room');
+    }
+  };
+
+  const handleRejectRoom = async (roomId) => {
+    try {
+      await rejectRoom(roomId);
+      loadData();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to reject room');
     }
   };
 
@@ -154,7 +175,7 @@ const AdminDashboard = () => {
         )}
 
         {/* Pending Owners */}
-        <div className="bg-white shadow overflow-hidden sm:rounded-md">
+        <div className="bg-white shadow overflow-hidden sm:rounded-md mb-6">
           <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
             <h3 className="text-lg leading-6 font-medium text-gray-900">Pending Owner Approvals</h3>
           </div>
@@ -183,6 +204,50 @@ const AdminDashboard = () => {
                       </button>
                       <button
                         onClick={() => handleReject(owner.id)}
+                        className="bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Pending Rooms */}
+        <div className="bg-white shadow overflow-hidden sm:rounded-md">
+          <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
+            <h3 className="text-lg leading-6 font-medium text-gray-900">Pending Room Approvals</h3>
+          </div>
+          {pendingRooms.length === 0 ? (
+            <div className="px-4 py-5 sm:p-6 text-center text-gray-500">
+              No pending rooms
+            </div>
+          ) : (
+            <ul className="divide-y divide-gray-200">
+              {pendingRooms.map((room) => (
+                <li key={room.id}>
+                  <div className="px-4 py-4 sm:px-6 flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <img src={room.images && room.images.length > 0 ? room.images[0] : 'https://via.placeholder.com/80'} alt={room.title} className="w-20 h-16 object-cover rounded" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{room.title}</p>
+                        <p className="text-sm text-gray-500">{room.address}, {room.city}</p>
+                        <p className="text-xs text-gray-400">Owner: {room.owner?.name || room.owner?.email || 'N/A'}</p>
+                        <p className="text-xs text-gray-400">Created: {new Date(room.createdAt).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleApproveRoom(room.id)}
+                        className="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => handleRejectRoom(room.id)}
                         className="bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700"
                       >
                         Reject

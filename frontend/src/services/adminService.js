@@ -47,3 +47,39 @@ export async function getStats() {
     throw err;
   }
 }
+
+export async function getPendingRooms() {
+  console.log('[adminService] getPendingRooms()');
+  try {
+    const res = await api.get('/admin/pending-rooms');
+    console.log('[adminService] getPendingRooms -> response', res);
+    return res;
+  } catch (err) {
+    console.error('[adminService] getPendingRooms -> error', err.response || err);
+    throw err;
+  }
+}
+
+export async function approveRoom(roomId) {
+  console.log('[adminService] approveRoom()', roomId);
+  try {
+    const res = await api.post(`/admin/approve-room/${roomId}`);
+    console.log('[adminService] approveRoom -> response', res);
+    return res;
+  } catch (err) {
+    console.error('[adminService] approveRoom -> error', err.response || err);
+    throw err;
+  }
+}
+
+export async function rejectRoom(roomId) {
+  console.log('[adminService] rejectRoom()', roomId);
+  try {
+    const res = await api.post(`/admin/reject-room/${roomId}`);
+    console.log('[adminService] rejectRoom -> response', res);
+    return res;
+  } catch (err) {
+    console.error('[adminService] rejectRoom -> error', err.response || err);
+    throw err;
+  }
+}

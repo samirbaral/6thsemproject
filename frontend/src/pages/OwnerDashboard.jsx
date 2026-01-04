@@ -27,7 +27,8 @@ const OwnerDashboard = () => {
     bathrooms: '1',
     area: '',
     amenities: '',
-    images: [],
+    images: [], // preview data URLs
+    imageFiles: [], // actual File objects for upload
     isAvailable: true,
   });
 
@@ -69,7 +70,11 @@ const OwnerDashboard = () => {
           })
         )
       );
-      setFormData((prev) => ({ ...(prev || {}), images: [...(prev.images || []), ...dataUrls] }));
+      setFormData((prev) => ({
+        ...(prev || {}),
+        images: [...(prev.images || []), ...dataUrls],
+        imageFiles: [...(prev.imageFiles || []), ...files],
+      }));
     } catch (err) {
       console.error('Error reading files', err);
     }
@@ -78,7 +83,17 @@ const OwnerDashboard = () => {
   const removeImage = (index) => {
     setFormData((prev) => {
       const newImgs = prev.images.filter((_, i) => i !== index);
-      return { ...(prev || {}), images: newImgs };
+      let newFiles = prev.imageFiles || [];
+      if (prev.imageFiles && prev.imageFiles.length > 0) {
+        // If the removed index corresponds to an uploaded file, remove it from imageFiles
+        if (index < prev.imageFiles.length) {
+          newFiles = prev.imageFiles.filter((_, i) => i !== index);
+        } else {
+          // otherwise leave files as-is (existing remote images removed)
+          newFiles = prev.imageFiles;
+        }
+      }
+      return { ...(prev || {}), images: newImgs, imageFiles: newFiles };
     });
     // update attached file tracking if necessary
     setLastAttachedIndex((prevIdx) => {
@@ -110,7 +125,7 @@ const OwnerDashboard = () => {
         const newIndex = imgs.length - 1;
         setLastAttachedIndex(newIndex);
         setAttachedFileName(file.name);
-        return { ...(prev || {}), images: imgs };
+        return { ...(prev || {}), images: imgs, imageFiles: [...(prev.imageFiles || []), file] };
       });
       // clear the input so same file can be selected again if needed
       e.target.value = '';
@@ -129,11 +144,37 @@ const OwnerDashboard = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      if (editingRoom) {
-        await updateRoom(editingRoom.id, formData);
-      } else {
-        await createRoom(formData);
+      // Build FormData for file upload
+      const payload = new FormData();
+      payload.append('title', formData.title);
+      payload.append('description', formData.description);
+      payload.append('address', formData.address);
+      payload.append('city', formData.city);
+      payload.append('state', formData.state);
+      payload.append('zipCode', formData.zipCode);
+      payload.append('price', formData.price);
+      payload.append('bedrooms', formData.bedrooms);
+      payload.append('bathrooms', formData.bathrooms);
+      payload.append('area', formData.area || '');
+      payload.append('amenities', formData.amenities || '');
+      payload.append('isAvailable', formData.isAvailable ? 'true' : 'false');
+
+      // Attach files if present
+      (formData.imageFiles || []).forEach((file) => {
+        payload.append('images', file);
+      });
+
+      // If no new files but existing image URLs (editing case), pass them as JSON so backend keeps them
+      if ((formData.imageFiles || []).length === 0 && Array.isArray(formData.images)) {
+        payload.append('images', JSON.stringify(formData.images));
       }
+
+      if (editingRoom) {
+        await updateRoom(editingRoom.id, payload);
+      } else {
+        await createRoom(payload);
+      }
+
       setShowRoomForm(false);
       setEditingRoom(null);
       resetForm();
@@ -158,6 +199,7 @@ const OwnerDashboard = () => {
       area: room.area?.toString() || '',
       amenities: room.amenities,
       images: Array.isArray(room.images) ? room.images : (room.images ? room.images.split(',').map(s => s.trim()) : []),
+      imageFiles: [],
       isAvailable: room.isAvailable,
     });
     setAttachedFileName('');
@@ -512,6 +554,17 @@ const OwnerDashboard = () => {
                     <span className={room.isAvailable ? 'text-green-600' : 'text-red-600'}>
                       {room.isAvailable ? 'Available' : 'Unavailable'}
                     </span>
+                  </div>
+
+                  {/* Additional metadata */}
+                  <div className="text-sm text-gray-600 mb-4">
+                    <p className="mb-1"><strong>Address:</strong> {room.address}, {room.city}, {room.state} {room.zipCode}</p>
+                    <p className="mb-1"><strong>Area:</strong> {room.area ? `${room.area}` : 'N/A'}</p>
+                    <p className="mb-1">
+                      <strong>Amenities:</strong> {typeof room.amenities === 'string' ? room.amenities : Array.isArray(room.amenities) ? room.amenities.join(', ') : ''}
+                    </p>
+                    <p className="mb-1"><strong>Status:</strong> <span className={room.status === 'APPROVED' ? 'text-green-600' : room.status === 'REJECTED' ? 'text-red-600' : 'text-yellow-800'}>{room.status}</span></p>
+                    <p className="text-xs text-gray-500"><strong>Created:</strong> {room.createdAt ? new Date(room.createdAt).toLocaleString() : ''}</p>
                   </div>
                   
                   {room.bookings && room.bookings.length > 0 && (

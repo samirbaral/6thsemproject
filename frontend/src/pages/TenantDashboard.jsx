@@ -273,9 +273,9 @@ const TenantDashboard = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {rooms.map((room) => (
                   <div key={room.id} className="bg-white rounded-lg shadow overflow-hidden">
-                    {room.images && (
+                    {room.images && ((Array.isArray(room.images) && room.images.length > 0) || (typeof room.images === 'string' && room.images.trim())) && (
                       <img
-                        src={room.images.split(',')[0].trim() || 'https://via.placeholder.com/400x300'}
+                        src={Array.isArray(room.images) ? (room.images[0] || 'https://via.placeholder.com/400x300') : (room.images.split(',')[0].trim() || 'https://via.placeholder.com/400x300')}
                         alt={room.title}
                         className="w-full h-48 object-cover"
                       />

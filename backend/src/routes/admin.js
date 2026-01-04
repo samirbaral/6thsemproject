@@ -12,6 +12,12 @@ router.use(requireRole('ADMIN'));
 router.get('/pending-owners', adminController.getPendingOwners);
 router.post('/approve-owner/:ownerId', adminController.approveOwner);
 router.post('/reject-owner/:ownerId', adminController.rejectOwner);
+
+// Room approval routes
+router.get('/pending-rooms', adminController.getPendingRooms);
+router.post('/approve-room/:roomId', adminController.approveRoom);
+router.post('/reject-room/:roomId', adminController.rejectRoom);
+
 router.get('/stats', adminController.getStats);
 
 export default router;

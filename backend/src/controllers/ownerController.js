@@ -18,6 +18,22 @@ export async function createRoom(req, res, next) {
       images,
     } = req.body;
 
+    // If files were uploaded via multer, use their filenames; otherwise allow images from body
+    const uploadedFilenames = req.files && req.files.length > 0 ? req.files.map(f => f.filename) : [];
+    let bodyImages = [];
+    if (!uploadedFilenames.length && images) {
+      if (Array.isArray(images)) {
+        bodyImages = images;
+      } else if (typeof images === 'string' && images.trim() !== '') {
+        try {
+          bodyImages = JSON.parse(images);
+        } catch (e) {
+          bodyImages = images.split(',').map(s => s.trim()).filter(Boolean);
+        }
+      }
+    }
+    const imagesToStore = uploadedFilenames.length > 0 ? uploadedFilenames : bodyImages;
+
     if (!title || !description || !address || !city || !state || !zipCode || !price) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
@@ -35,7 +51,7 @@ export async function createRoom(req, res, next) {
         bathrooms: parseFloat(bathrooms) || 1,
         area: area ? parseFloat(area) : null,
         amenities: amenities || '',
-        images: images || '',
+        images: imagesToStore,
         ownerId,
       },
     });
@@ -67,7 +83,12 @@ export async function getMyRooms(req, res, next) {
       },
       orderBy: { createdAt: 'desc' },
     });
-    return res.json(rooms);
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const transformed = rooms.map(r => ({
+      ...r,
+      images: Array.isArray(r.images) ? r.images.map(f => `${baseUrl}/uploads/${f}`) : [],
+    }));
+    return res.json(transformed);
   } catch (err) {
     console.error('[ownerController] getMyRooms error', err);
     return next(err);
@@ -103,7 +124,13 @@ export async function getRoom(req, res, next) {
       return res.status(404).json({ error: 'Room not found' });
     }
 
-    return res.json(room);
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const transformed = {
+      ...room,
+      images: Array.isArray(room.images) ? room.images.map(f => `${baseUrl}/uploads/${f}`) : [],
+    };
+
+    return res.json(transformed);
   } catch (err) {
     console.error('[ownerController] getRoom error', err);
     return next(err);
@@ -141,6 +168,25 @@ export async function updateRoom(req, res, next) {
       return res.status(404).json({ error: 'Room not found' });
     }
 
+    // handle images from file upload or body
+    const uploadedFilenamesUpdate = req.files && req.files.length > 0 ? req.files.map(f => f.filename) : [];
+    let imagesToStoreUpdate;
+    if (uploadedFilenamesUpdate.length > 0) {
+      imagesToStoreUpdate = uploadedFilenamesUpdate;
+    } else if (images !== undefined) {
+      if (Array.isArray(images)) {
+        imagesToStoreUpdate = images;
+      } else if (typeof images === 'string' && images.trim() !== '') {
+        try {
+          imagesToStoreUpdate = JSON.parse(images);
+        } catch (e) {
+          imagesToStoreUpdate = images.split(',').map(s => s.trim()).filter(Boolean);
+        }
+      } else {
+        imagesToStoreUpdate = [];
+      }
+    }
+
     const updateData = {};
     if (title) updateData.title = title;
     if (description) updateData.description = description;
@@ -153,7 +199,7 @@ export async function updateRoom(req, res, next) {
     if (bathrooms) updateData.bathrooms = parseFloat(bathrooms);
     if (area !== undefined) updateData.area = area ? parseFloat(area) : null;
     if (amenities !== undefined) updateData.amenities = amenities;
-    if (images !== undefined) updateData.images = images;
+    if (imagesToStoreUpdate !== undefined) updateData.images = imagesToStoreUpdate;
     if (isAvailable !== undefined) updateData.isAvailable = isAvailable;
 
     const room = await prisma.room.update({

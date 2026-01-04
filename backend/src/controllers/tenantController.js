@@ -6,6 +6,7 @@ export async function getAllRooms(req, res, next) {
 
     const where = {
       isAvailable: true,
+      status: 'APPROVED',
       owner: {
         ownerStatus: 'APPROVED',
       },
@@ -30,7 +31,13 @@ export async function getAllRooms(req, res, next) {
       orderBy: { createdAt: 'desc' },
     });
 
-    return res.json(rooms);
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const transformed = rooms.map(r => ({
+      ...r,
+      images: Array.isArray(r.images) ? r.images.map(f => `${baseUrl}/uploads/${f}`) : [],
+    }));
+
+    return res.json(transformed);
   } catch (err) {
     console.error('[tenantController] getAllRooms error', err);
     return next(err);
@@ -45,6 +52,7 @@ export async function getRoom(req, res, next) {
       where: {
         id: parseInt(roomId),
         isAvailable: true,
+        status: 'APPROVED',
         owner: {
           ownerStatus: 'APPROVED',
         },
@@ -64,7 +72,13 @@ export async function getRoom(req, res, next) {
       return res.status(404).json({ error: 'Room not found' });
     }
 
-    return res.json(room);
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const transformed = {
+      ...room,
+      images: Array.isArray(room.images) ? room.images.map(f => `${baseUrl}/uploads/${f}`) : [],
+    };
+
+    return res.json(transformed);
   } catch (err) {
     console.error('[tenantController] getRoom error', err);
     return next(err);

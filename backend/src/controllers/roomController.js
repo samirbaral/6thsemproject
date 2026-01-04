@@ -26,10 +26,10 @@ export async function createRoom(req, res) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    let imageUrls = '';
+    // Store uploaded filenames (not full URLs) as an array in DB
+    let imageFilenames = [];
     if (req.files && req.files.length > 0) {
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-      imageUrls = req.files.map(file => `${baseUrl}/uploads/${file.filename}`).join(',');
+      imageFilenames = req.files.map(file => file.filename);
     }
 
     const roomData = {
@@ -44,9 +44,9 @@ export async function createRoom(req, res) {
       bathrooms: parseFloat(bathrooms) || 1,
       area: area ? parseFloat(area) : null,
       amenities: amenities || '',
-        images: imageUrls,
-        ownerId: parseInt(ownerId),
-        isAvailable: isAvailable === undefined ? true : (isAvailable === 'true' || isAvailable === true),
+      images: imageFilenames,
+      ownerId: parseInt(ownerId),
+      isAvailable: isAvailable === undefined ? true : (isAvailable === 'true' || isAvailable === true),
     };
 
     console.log('[createRoom] Creating room with data:', roomData);
@@ -70,7 +70,15 @@ export async function getAllRooms(req, res) {
     const rooms = await prisma.room.findMany({
       orderBy: { createdAt: 'desc' },
     });
-    return res.json(rooms);
+
+    // Convert stored filenames to full URLs
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const transformed = rooms.map(r => ({
+      ...r,
+      images: Array.isArray(r.images) ? r.images.map(f => `${baseUrl}/uploads/${f}`) : [],
+    }));
+
+    return res.json(transformed);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Internal server error' });
@@ -88,7 +96,13 @@ export async function getRoomById(req, res) {
       return res.status(404).json({ error: 'Room not found' });
     }
 
-    return res.json(room);
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const transformed = {
+      ...room,
+      images: Array.isArray(room.images) ? room.images.map(f => `${baseUrl}/uploads/${f}`) : [],
+    };
+
+    return res.json(transformed);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Internal server error' });
@@ -138,8 +152,8 @@ export async function updateRoom(req, res) {
     }
 
     if (req.files && req.files.length > 0) {
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-      updateData.images = req.files.map(file => `${baseUrl}/uploads/${file.filename}`).join(',');
+      // Save filenames only
+      updateData.images = req.files.map(file => file.filename);
     }
 
     const room = await prisma.room.update({
