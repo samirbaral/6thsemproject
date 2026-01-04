@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model booking {
+  id          Int            @id @default(autoincrement())
+  roomId      Int
+  tenantId    Int
+  checkIn     DateTime
+  checkOut    DateTime
+  status      booking_status @default(PENDING)
+  totalAmount Float
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime
+  room        room           @relation(fields: [roomId], references: [id], onDelete: Cascade, map: "Booking_roomId_fkey")
+  user        user           @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "Booking_tenantId_fkey")
+
+  @@index([roomId], map: "Booking_roomId_fkey")
+  @@index([tenantId], map: "Booking_tenantId_fkey")
+}
+
+model review {
+  id        Int      @id @default(autoincrement())
+  rating    Int
+  comment   String?
+  roomId    Int
+  tenantId  Int
+  createdAt DateTime @default(now())
+  room      room     @relation(fields: [roomId], references: [id], onDelete: Cascade, map: "Review_roomId_fkey")
+  user      user     @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "Review_tenantId_fkey")
+
+  @@index([roomId], map: "Review_roomId_fkey")
+  @@index([tenantId], map: "Review_tenantId_fkey")
+}
+
+model room {
+  id          Int         @id @default(autoincrement())
+  title       String
+  description String      @db.Text
+  address     String
+  city        String
+  state       String
+  zipCode     String
+  price       Float
+  bedrooms    Int         @default(1)
+  bathrooms   Float       @default(1)
+  area        Float?
+  amenities   Json
+  images      Json
+  isAvailable Boolean     @default(true)
+  ownerId     Int
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime
+  isActive    Boolean     @default(true)
+  status      room_status @default(PENDING)
+  booking     booking[]
+  review      review[]
+  user        user        @relation(fields: [ownerId], references: [id], onDelete: Cascade, map: "Room_ownerId_fkey")
+
+  @@index([ownerId], map: "Room_ownerId_fkey")
+}
+
+model user {
+  id          Int               @id @default(autoincrement())
+  email       String            @unique(map: "User_email_key")
+  password    String
+  name        String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime
+  ownerStatus user_ownerStatus? @default(PENDING)
+  role        user_role         @default(TENANT)
+  booking     booking[]
+  review      review[]
+  room        room[]
+}
+
+enum booking_status {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum user_ownerStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum user_role {
+  ADMIN
+  OWNER
+  TENANT
+}
+
+enum room_status {
+  PENDING
+  APPROVED
+  REJECTED
+}
