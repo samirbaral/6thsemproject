@@ -12,7 +12,7 @@ export async function createRoom(req, res) {
       city,
       state,
       zipCode,
-      price,
+      monthly_rent,
       bedrooms,
       bathrooms,
       area,
@@ -21,7 +21,7 @@ export async function createRoom(req, res) {
       isAvailable,
     } = req.body;
 
-    if (!title || !description || !address || !city || !state || !zipCode || !price || !ownerId) {
+    if (!title || !description || !address || !city || !state || !zipCode || !monthly_rent || !ownerId) {
       console.log('[createRoom] Missing required fields');
       return res.status(400).json({ error: 'Missing required fields' });
     }
@@ -39,7 +39,7 @@ export async function createRoom(req, res) {
       city,
       state,
       zipCode,
-      price: parseFloat(price),
+      monthly_rent: parseFloat(monthly_rent),
       bedrooms: parseInt(bedrooms) || 1,
       bathrooms: parseFloat(bathrooms) || 1,
       area: area ? parseFloat(area) : null,
@@ -47,6 +47,7 @@ export async function createRoom(req, res) {
       images: imageFilenames,
       ownerId: parseInt(ownerId),
       isAvailable: isAvailable === undefined ? true : (isAvailable === 'true' || isAvailable === true),
+      updatedAt: new Date(),
     };
 
     console.log('[createRoom] Creating room with data:', roomData);
@@ -119,7 +120,7 @@ export async function updateRoom(req, res) {
       city,
       state,
       zipCode,
-      price,
+      monthly_rent,
       bedrooms,
       bathrooms,
       area,
@@ -142,7 +143,10 @@ export async function updateRoom(req, res) {
     if (city) updateData.city = city;
     if (state) updateData.state = state;
     if (zipCode) updateData.zipCode = zipCode;
-    if (price) updateData.price = parseFloat(price);
+    if (monthly_rent) {
+      updateData.monthly_rent = parseFloat(monthly_rent);
+      updateData.updatedAt = new Date();
+    }
     if (bedrooms) updateData.bedrooms = parseInt(bedrooms);
     if (bathrooms) updateData.bathrooms = parseFloat(bathrooms);
     if (area !== undefined) updateData.area = area ? parseFloat(area) : null;

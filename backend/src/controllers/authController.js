@@ -40,6 +40,7 @@ export async function register(req, res, next) {
       name,
       role: userRole,
       ownerStatus: userRole === 'OWNER' ? 'PENDING' : null,
+      updatedAt: new Date(),
     };
 
     const user = await prisma.user.create({ data: userData });

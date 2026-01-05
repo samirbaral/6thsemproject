@@ -10,7 +10,7 @@ export async function createRoom(req, res, next) {
       city,
       state,
       zipCode,
-      price,
+      monthly_rent,
       bedrooms,
       bathrooms,
       area,
@@ -34,7 +34,7 @@ export async function createRoom(req, res, next) {
     }
     const imagesToStore = uploadedFilenames.length > 0 ? uploadedFilenames : bodyImages;
 
-    if (!title || !description || !address || !city || !state || !zipCode || !price) {
+    if (!title || !description || !address || !city || !state || !zipCode || !monthly_rent) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -46,13 +46,14 @@ export async function createRoom(req, res, next) {
         city,
         state,
         zipCode,
-        price: parseFloat(price),
+        monthly_rent: parseFloat(monthly_rent),
         bedrooms: parseInt(bedrooms) || 1,
         bathrooms: parseFloat(bathrooms) || 1,
         area: area ? parseFloat(area) : null,
         amenities: amenities || '',
         images: imagesToStore,
         ownerId,
+        updatedAt: new Date(),
       },
     });
 
@@ -69,9 +70,9 @@ export async function getMyRooms(req, res, next) {
     const rooms = await prisma.room.findMany({
       where: { ownerId },
       include: {
-        bookings: {
+        booking: {
           include: {
-            tenant: {
+            user: {
               select: {
                 id: true,
                 name: true,
@@ -86,6 +87,10 @@ export async function getMyRooms(req, res, next) {
     const baseUrl = `${req.protocol}://${req.get('host')}`;
     const transformed = rooms.map(r => ({
       ...r,
+      bookings: Array.isArray(r.booking) ? r.booking.map(b => ({
+        ...b,
+        tenant: b.user ? { id: b.user.id, name: b.user.name, email: b.user.email } : null,
+      })) : [],
       images: Array.isArray(r.images) ? r.images.map(f => `${baseUrl}/uploads/${f}`) : [],
     }));
     return res.json(transformed);
@@ -106,9 +111,9 @@ export async function getRoom(req, res, next) {
         ownerId,
       },
       include: {
-        bookings: {
+        booking: {
           include: {
-            tenant: {
+            user: {
               select: {
                 id: true,
                 name: true,
@@ -127,6 +132,10 @@ export async function getRoom(req, res, next) {
     const baseUrl = `${req.protocol}://${req.get('host')}`;
     const transformed = {
       ...room,
+      bookings: Array.isArray(room.booking) ? room.booking.map(b => ({
+        ...b,
+        tenant: b.user ? { id: b.user.id, name: b.user.name, email: b.user.email } : null,
+      })) : [],
       images: Array.isArray(room.images) ? room.images.map(f => `${baseUrl}/uploads/${f}`) : [],
     };
 
@@ -148,7 +157,7 @@ export async function updateRoom(req, res, next) {
       city,
       state,
       zipCode,
-      price,
+      monthly_rent,
       bedrooms,
       bathrooms,
       area,
@@ -194,13 +203,36 @@ export async function updateRoom(req, res, next) {
     if (city) updateData.city = city;
     if (state) updateData.state = state;
     if (zipCode) updateData.zipCode = zipCode;
-    if (price) updateData.price = parseFloat(price);
+    if (monthly_rent) {
+      updateData.monthly_rent = parseFloat(monthly_rent);
+      updateData.updatedAt = new Date();
+    }
     if (bedrooms) updateData.bedrooms = parseInt(bedrooms);
     if (bathrooms) updateData.bathrooms = parseFloat(bathrooms);
     if (area !== undefined) updateData.area = area ? parseFloat(area) : null;
     if (amenities !== undefined) updateData.amenities = amenities;
     if (imagesToStoreUpdate !== undefined) updateData.images = imagesToStoreUpdate;
-    if (isAvailable !== undefined) updateData.isAvailable = isAvailable;
+    if (isAvailable !== undefined) {
+      if (typeof isAvailable === 'boolean') {
+        updateData.isAvailable = isAvailable;
+      } else if (typeof isAvailable === 'string') {
+        const v = isAvailable.trim().toLowerCase();
+        if (v === 'true' || v === '1' || v === 'yes' || v === 'on') {
+          updateData.isAvailable = true;
+        } else if (v === 'false' || v === '0' || v === 'no' || v === 'off') {
+          updateData.isAvailable = false;
+        } else {
+          try {
+            const parsed = JSON.parse(isAvailable);
+            updateData.isAvailable = Boolean(parsed);
+          } catch (e) {
+            updateData.isAvailable = false;
+          }
+        }
+      } else {
+        updateData.isAvailable = Boolean(isAvailable);
+      }
+    }
 
     const room = await prisma.room.update({
       where: { id: parseInt(roomId) },
@@ -259,17 +291,20 @@ export async function updateBookingStatus(req, res, next) {
           ownerId,
         },
       },
+      include: {
+        room: true,
+      },
     });
 
     if (!booking) {
-      return res.status(404).json({ error: 'Booking not found' });
+      return res.status(404).json({ error: 'Rent request not found' });
     }
 
     const updatedBooking = await prisma.booking.update({
       where: { id: parseInt(bookingId) },
       data: { status },
       include: {
-        tenant: {
+        user: {
           select: {
             id: true,
             name: true,
@@ -279,6 +314,42 @@ export async function updateBookingStatus(req, res, next) {
         room: true,
       },
     });
+
+    // map user -> tenant for API compatibility
+    if (updatedBooking && updatedBooking.user) {
+      updatedBooking.tenant = { id: updatedBooking.user.id, name: updatedBooking.user.name, email: updatedBooking.user.email };
+    }
+
+    // When owner confirms rent request, set room status to "occupied" (isAvailable = false)
+    if (status === 'CONFIRMED') {
+      await prisma.room.update({
+        where: { id: booking.roomId },
+        data: { isAvailable: false },
+      });
+    }
+    // When rent request is cancelled or completed, room becomes available again
+    else if (status === 'CANCELLED' || status === 'COMPLETED') {
+      // Check if there are other active bookings for this room
+      const activeBookings = await prisma.booking.findFirst({
+        where: {
+          roomId: booking.roomId,
+          status: {
+            in: ['PENDING', 'CONFIRMED'],
+          },
+          id: {
+            not: parseInt(bookingId),
+          },
+        },
+      });
+
+      // Only set available if no other active bookings exist
+      if (!activeBookings) {
+        await prisma.room.update({
+          where: { id: booking.roomId },
+          data: { isAvailable: true },
+        });
+      }
+    }
 
     return res.json(updatedBooking);
   } catch (err) {

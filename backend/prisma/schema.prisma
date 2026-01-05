@@ -10,8 +10,8 @@ model booking {
   id          Int            @id @default(autoincrement())
   roomId      Int
   tenantId    Int
-  checkIn     DateTime
-  checkOut    DateTime
+  start_month String         @db.VarChar(7)
+  end_month   String         @db.VarChar(7)
   status      booking_status @default(PENDING)
   totalAmount Float
   createdAt   DateTime       @default(now())
@@ -45,7 +45,7 @@ model room {
   city        String
   state       String
   zipCode     String
-  price       Float
+  monthly_rent Float
   bedrooms    Int         @default(1)
   bathrooms   Float       @default(1)
   area        Float?

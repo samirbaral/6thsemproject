@@ -75,7 +75,7 @@ export async function getPendingRooms(req, res, next) {
     const rooms = await prisma.room.findMany({
       where: { status: 'PENDING' },
       include: {
-        owner: {
+        user: {
           select: {
             id: true,
             name: true,
@@ -89,6 +89,7 @@ export async function getPendingRooms(req, res, next) {
     const baseUrl = `${req.protocol}://${req.get('host')}`;
     const transformed = rooms.map(r => ({
       ...r,
+      owner: r.user ? { id: r.user.id, name: r.user.name, email: r.user.email } : null,
       images: Array.isArray(r.images) ? r.images.map(f => `${baseUrl}/uploads/${f}`) : [],
     }));
 

@@ -9,7 +9,7 @@ const AddRoom = ({ room, onClose }) => {
     city: '',
     state: '',
     zipCode: '',
-    price: '',
+    monthly_rent: '',
     bedrooms: '1',
     bathrooms: '1',
     area: '',
@@ -29,7 +29,7 @@ const AddRoom = ({ room, onClose }) => {
         city: room.city || '',
         state: room.state || '',
         zipCode: room.zipCode || '',
-        price: room.price?.toString() || '',
+        monthly_rent: room.monthly_rent?.toString() || '',
         bedrooms: room.bedrooms?.toString() || '1',
         bathrooms: room.bathrooms?.toString() || '1',
         area: room.area?.toString() || '',
@@ -107,13 +107,13 @@ const AddRoom = ({ room, onClose }) => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Price *</label>
+              <label className="block text-sm font-medium text-gray-700">Monthly Rent (NPR) *</label>
               <input
                 type="number"
-                name="price"
+                name="monthly_rent"
                 required
                 step="0.01"
-                value={formData.price}
+                value={formData.monthly_rent}
                 onChange={handleChange}
                 className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
               />

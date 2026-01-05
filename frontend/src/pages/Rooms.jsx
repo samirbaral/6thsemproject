@@ -84,7 +84,7 @@ const Rooms = () => {
               <h3 className="text-xl font-semibold mb-2">{room.title}</h3>
               <p className="text-gray-600 text-sm mb-2 line-clamp-2">{room.description}</p>
               <p className="text-sm text-gray-500 mb-2">{room.address}, {room.city}, {room.state}</p>
-              <p className="text-lg font-bold text-blue-600 mb-4">${room.price}/day</p>
+              <p className="text-lg font-bold text-blue-600 mb-4">${room.monthly_rent}/month</p>
               <div className="flex space-x-2">
                 <button
                   onClick={() => handleEdit(room)}

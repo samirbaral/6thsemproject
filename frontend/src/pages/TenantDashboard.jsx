@@ -21,8 +21,8 @@ const TenantDashboard = () => {
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [bookingData, setBookingData] = useState({
-    checkIn: '',
-    checkOut: '',
+    start_month: '',
+    end_month: '',
   });
 
   useEffect(() => {
@@ -67,18 +67,24 @@ const TenantDashboard = () => {
   const handleBookingSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Validate minimum 1-month rental period
+      if (bookingData.end_month <= bookingData.start_month) {
+        alert('End month must be after start month. Minimum rental period is 1 month.');
+        return;
+      }
+      
       await bookRoom({
         roomId: selectedRoom.id,
-        checkIn: bookingData.checkIn,
-        checkOut: bookingData.checkOut,
+        start_month: bookingData.start_month,
+        end_month: bookingData.end_month,
       });
       setShowBookingForm(false);
       setSelectedRoom(null);
-      setBookingData({ checkIn: '', checkOut: '' });
+      setBookingData({ start_month: '', end_month: '' });
       loadBookings();
-      alert('Room booked successfully!');
+      alert('Rent request submitted successfully!');
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to book room');
+      alert(err.response?.data?.error || 'Failed to submit rent request');
     }
   };
 
@@ -213,45 +219,46 @@ const TenantDashboard = () => {
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
             <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
               <div className="mt-3">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Book {selectedRoom.title}</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Request to Rent {selectedRoom.title}</h3>
                 <form onSubmit={handleBookingSubmit} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Check-in Date</label>
+                    <label className="block text-sm font-medium text-gray-700">Start Month *</label>
                     <input
-                      type="date"
-                      name="checkIn"
+                      type="month"
+                      name="start_month"
                       required
-                      min={new Date().toISOString().split('T')[0]}
-                      value={bookingData.checkIn}
-                      onChange={(e) => setBookingData({ ...bookingData, checkIn: e.target.value })}
+                      min={new Date().toISOString().slice(0, 7)}
+                      value={bookingData.start_month}
+                      onChange={(e) => setBookingData({ ...bookingData, start_month: e.target.value })}
                       className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Check-out Date</label>
+                    <label className="block text-sm font-medium text-gray-700">End Month *</label>
                     <input
-                      type="date"
-                      name="checkOut"
+                      type="month"
+                      name="end_month"
                       required
-                      min={bookingData.checkIn || new Date().toISOString().split('T')[0]}
-                      value={bookingData.checkOut}
-                      onChange={(e) => setBookingData({ ...bookingData, checkOut: e.target.value })}
+                      min={bookingData.start_month || new Date().toISOString().slice(0, 7)}
+                      value={bookingData.end_month}
+                      onChange={(e) => setBookingData({ ...bookingData, end_month: e.target.value })}
                       className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
                     />
+                    <p className="mt-1 text-xs text-gray-500">Minimum rental period is 1 month</p>
                   </div>
                   <div className="flex space-x-4 pt-4">
                     <button
                       type="submit"
                       className="flex-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
                     >
-                      Book Now
+                      Submit Rent Request
                     </button>
                     <button
                       type="button"
                       onClick={() => {
                         setShowBookingForm(false);
                         setSelectedRoom(null);
-                        setBookingData({ checkIn: '', checkOut: '' });
+                        setBookingData({ start_month: '', end_month: '' });
                       }}
                       className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400"
                     >
@@ -297,14 +304,14 @@ const TenantDashboard = () => {
                         <p className="text-xs text-gray-500 mb-4">{room.amenities}</p>
                       )}
                       <div className="flex items-center justify-between">
-                        <span className="text-2xl font-bold text-blue-600">${room.price}</span>
-                        <span className="text-sm text-gray-500">/day</span>
+                        <span className="text-2xl font-bold text-blue-600">${room.monthly_rent}</span>
+                        <span className="text-sm text-gray-500">/month</span>
                       </div>
                       <button
                         onClick={() => handleBookRoom(room)}
                         className="mt-4 w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
                       >
-                        Book Now
+                        Request to Rent
                       </button>
                     </div>
                   </div>
@@ -331,7 +338,7 @@ const TenantDashboard = () => {
                 {bookings.length === 0 ? (
                   <div className="px-4 py-5 sm:p-6 text-center text-gray-500">
                     <Calendar className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                    <p>No bookings yet</p>
+                    <p>No rent requests yet</p>
                   </div>
                 ) : (
                   <ul className="divide-y divide-gray-200">
@@ -347,7 +354,7 @@ const TenantDashboard = () => {
                               </div>
                               <div className="mt-2 flex items-center text-sm text-gray-500">
                                 <Calendar className="h-4 w-4 mr-1" />
-                                {new Date(booking.checkIn).toLocaleDateString()} - {new Date(booking.checkOut).toLocaleDateString()}
+                                {booking.start_month} to {booking.end_month}
                               </div>
                               <div className="mt-2">
                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -367,7 +374,7 @@ const TenantDashboard = () => {
                                   onClick={() => handleCancelBooking(booking.id)}
                                   className="mt-2 text-sm text-red-600 hover:text-red-800"
                                 >
-                                  Cancel Booking
+                                  Cancel Rent Request
                                 </button>
                               )}
                             </div>

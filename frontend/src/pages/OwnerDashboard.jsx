@@ -22,7 +22,7 @@ const OwnerDashboard = () => {
     city: '',
     state: '',
     zipCode: '',
-    price: '',
+    monthly_rent: '',
     bedrooms: '1',
     bathrooms: '1',
     area: '',
@@ -152,7 +152,7 @@ const OwnerDashboard = () => {
       payload.append('city', formData.city);
       payload.append('state', formData.state);
       payload.append('zipCode', formData.zipCode);
-      payload.append('price', formData.price);
+      payload.append('monthly_rent', formData.monthly_rent);
       payload.append('bedrooms', formData.bedrooms);
       payload.append('bathrooms', formData.bathrooms);
       payload.append('area', formData.area || '');
@@ -193,7 +193,7 @@ const OwnerDashboard = () => {
       city: room.city,
       state: room.state,
       zipCode: room.zipCode,
-      price: room.price.toString(),
+      monthly_rent: room.monthly_rent.toString(),
       bedrooms: room.bedrooms.toString(),
       bathrooms: room.bathrooms.toString(),
       area: room.area?.toString() || '',
@@ -234,7 +234,7 @@ const OwnerDashboard = () => {
       city: '',
       state: '',
       zipCode: '',
-      price: '',
+      monthly_rent: '',
       bedrooms: '1',
       bathrooms: '1',
       area: '',
@@ -327,13 +327,13 @@ const OwnerDashboard = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Price</label>
+                  <label className="block text-sm font-medium text-gray-700">Monthly Rent (NPR)</label>
                   <input
                     type="number"
-                    name="price"
+                    name="monthly_rent"
                     required
                     step="0.01"
-                    value={formData.price}
+                    value={formData.monthly_rent}
                     onChange={handleChange}
                     className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
                   />
@@ -547,7 +547,7 @@ const OwnerDashboard = () => {
                   <p className="text-gray-600 text-sm mb-4 line-clamp-2">{room.description}</p>
                   <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
                     <span>{room.city}, {room.state}</span>
-                    <span className="font-bold text-blue-600">${room.price}/day</span>
+                    <span className="font-bold text-blue-600">${room.monthly_rent}/month</span>
                   </div>
                   <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
                     <span>{room.bedrooms} bed • {room.bathrooms} bath</span>
@@ -571,14 +571,14 @@ const OwnerDashboard = () => {
                     <div className="border-t pt-4 mt-4">
                       <h4 className="font-medium text-gray-900 mb-2 flex items-center">
                         <Calendar className="h-4 w-4 mr-2" />
-                        Bookings ({room.bookings.length})
+                        Rent Requests ({room.bookings.length})
                       </h4>
                       <div className="space-y-2">
                         {room.bookings.slice(0, 3).map((booking) => (
                           <div key={booking.id} className="text-sm bg-gray-50 p-2 rounded">
                             <p className="font-medium">{booking.tenant.name || booking.tenant.email}</p>
                             <p className="text-gray-600">
-                              {new Date(booking.checkIn).toLocaleDateString()} - {new Date(booking.checkOut).toLocaleDateString()}
+                              {booking.start_month} to {booking.end_month}
                             </p>
                             <p className="text-gray-600">${booking.totalAmount}</p>
                             <div className="mt-2 flex space-x-2">
