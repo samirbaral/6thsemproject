@@ -7,12 +7,9 @@ const AddRoom = ({ room, onClose }) => {
     description: '',
     address: '',
     city: '',
-    state: '',
-    zipCode: '',
     monthly_rent: '',
     bedrooms: '1',
     bathrooms: '1',
-    area: '',
     amenities: '',
     ownerId: '1',
     isAvailable: true,
@@ -27,12 +24,9 @@ const AddRoom = ({ room, onClose }) => {
         description: room.description || '',
         address: room.address || '',
         city: room.city || '',
-        state: room.state || '',
-        zipCode: room.zipCode || '',
         monthly_rent: room.monthly_rent?.toString() || '',
         bedrooms: room.bedrooms?.toString() || '1',
         bathrooms: room.bathrooms?.toString() || '1',
-        area: room.area?.toString() || '',
         amenities: room.amenities || '',
         ownerId: room.ownerId?.toString() || '1',
         isAvailable: room.isAvailable ?? true,
@@ -141,28 +135,6 @@ const AddRoom = ({ room, onClose }) => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">State *</label>
-              <input
-                type="text"
-                name="state"
-                required
-                value={formData.state}
-                onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Zip Code *</label>
-              <input
-                type="text"
-                name="zipCode"
-                required
-                value={formData.zipCode}
-                onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-              />
-            </div>
-            <div>
               <label className="block text-sm font-medium text-gray-700">Bedrooms</label>
               <input
                 type="number"
@@ -179,17 +151,6 @@ const AddRoom = ({ room, onClose }) => {
                 name="bathrooms"
                 step="0.5"
                 value={formData.bathrooms}
-                onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Area (sq ft)</label>
-              <input
-                type="number"
-                name="area"
-                step="0.01"
-                value={formData.area}
                 onChange={handleChange}
                 className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
               />

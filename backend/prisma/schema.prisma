@@ -43,13 +43,13 @@ model room {
   description String      @db.Text
   address     String
   city        String
-  state       String
-  zipCode     String
+  state       String?
+  zipCode     String?
   monthly_rent Float
   bedrooms    Int         @default(1)
-  bathrooms   Float       @default(1)
+  bathrooms   Float?
   area        Float?
-  amenities   Json
+  amenities   Json?
   images      Json
   isAvailable Boolean     @default(true)
   ownerId     Int

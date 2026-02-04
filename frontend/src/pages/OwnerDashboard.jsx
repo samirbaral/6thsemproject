@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { createRoom, getMyRooms, getRoom, updateRoom, deleteRoom, updateBookingStatus } from '../services/ownerService';
 import { signout } from '../services/authService';
 import { clearAuth, getUser } from '../utils/auth';
-import { Plus, Edit, Trash2, Home, Calendar } from 'lucide-react';
+import { Plus, Edit, Trash2, Home, Calendar, X, Check, LogOut, Building2, MapPin, Bed, Eye, ChevronUp, ChevronDown, Bell } from 'lucide-react';
 
 const OwnerDashboard = () => {
   const navigate = useNavigate();
@@ -12,25 +12,81 @@ const OwnerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [showRoomForm, setShowRoomForm] = useState(false);
   const [editingRoom, setEditingRoom] = useState(null);
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const fileInputRef = useRef(null);
   const [attachedFileName, setAttachedFileName] = useState('');
   const [lastAttachedIndex, setLastAttachedIndex] = useState(null);
+  const [formErrors, setFormErrors] = useState({});
+  const [toast, setToast] = useState(null);
+  const [formExpanded, setFormExpanded] = useState({});
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     address: '',
     city: '',
-    state: '',
-    zipCode: '',
     monthly_rent: '',
     bedrooms: '1',
-    bathrooms: '1',
-    area: '',
     amenities: '',
-    images: [], // preview data URLs
-    imageFiles: [], // actual File objects for upload
+    images: [],
+    imageFiles: [],
     isAvailable: true,
   });
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  const validateField = (name, value) => {
+    let error = '';
+    switch (name) {
+      case 'title':
+        if (!value.trim()) error = 'Title is required';
+        else if (value.trim().length < 3) error = 'Title must be at least 3 characters';
+        break;
+      case 'monthly_rent':
+        if (!value) error = 'Monthly rent is required';
+        else if (parseFloat(value) <= 0) error = 'Rent must be greater than 0';
+        break;
+      case 'address':
+        if (!value.trim()) error = 'Address is required';
+        break;
+      case 'city':
+        if (!value.trim()) error = 'City is required';
+        break;
+      case 'bedrooms':
+        if (!value) error = 'Bedrooms is required';
+        else if (parseInt(value) < 1) error = 'At least 1 bedroom is required';
+        break;
+      case 'description':
+        if (!value.trim()) error = 'Description is required';
+        else if (value.trim().length < 10) error = 'Description must be at least 10 characters';
+        break;
+      default:
+        break;
+    }
+    return error;
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    let isValid = true;
+    
+    Object.keys(formData).forEach((key) => {
+      if (key !== 'images' && key !== 'imageFiles' && key !== 'isAvailable' && key !== 'amenities') {
+        const error = validateField(key, formData[key]);
+        if (error) {
+          errors[key] = error;
+          isValid = false;
+        }
+      }
+    });
+    
+    setFormErrors(errors);
+    return isValid;
+  };
 
   useEffect(() => {
     loadRooms();
@@ -49,13 +105,19 @@ const OwnerDashboard = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+    const newValue = type === 'checkbox' ? checked : value;
     setFormData({
       ...formData,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: newValue,
     });
+    if (formErrors[name]) {
+      setFormErrors({
+        ...formErrors,
+        [name]: '',
+      });
+    }
   };
 
-  // Read files as data URLs and append to images array
   const handleFileSelect = async (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
@@ -85,17 +147,14 @@ const OwnerDashboard = () => {
       const newImgs = prev.images.filter((_, i) => i !== index);
       let newFiles = prev.imageFiles || [];
       if (prev.imageFiles && prev.imageFiles.length > 0) {
-        // If the removed index corresponds to an uploaded file, remove it from imageFiles
         if (index < prev.imageFiles.length) {
           newFiles = prev.imageFiles.filter((_, i) => i !== index);
         } else {
-          // otherwise leave files as-is (existing remote images removed)
           newFiles = prev.imageFiles;
         }
       }
       return { ...(prev || {}), images: newImgs, imageFiles: newFiles };
     });
-    // update attached file tracking if necessary
     setLastAttachedIndex((prevIdx) => {
       if (prevIdx === null) return prevIdx;
       if (index === prevIdx) {
@@ -127,7 +186,6 @@ const OwnerDashboard = () => {
         setAttachedFileName(file.name);
         return { ...(prev || {}), images: imgs, imageFiles: [...(prev.imageFiles || []), file] };
       });
-      // clear the input so same file can be selected again if needed
       e.target.value = '';
     } catch (err) {
       console.error('Error reading attached file', err);
@@ -143,44 +201,46 @@ const OwnerDashboard = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      showToast('Please fill in all required fields correctly', 'error');
+      return;
+    }
+
     try {
-      // Build FormData for file upload
       const payload = new FormData();
       payload.append('title', formData.title);
       payload.append('description', formData.description);
       payload.append('address', formData.address);
       payload.append('city', formData.city);
-      payload.append('state', formData.state);
-      payload.append('zipCode', formData.zipCode);
       payload.append('monthly_rent', formData.monthly_rent);
       payload.append('bedrooms', formData.bedrooms);
-      payload.append('bathrooms', formData.bathrooms);
-      payload.append('area', formData.area || '');
       payload.append('amenities', formData.amenities || '');
       payload.append('isAvailable', formData.isAvailable ? 'true' : 'false');
 
-      // Attach files if present
       (formData.imageFiles || []).forEach((file) => {
         payload.append('images', file);
       });
 
-      // If no new files but existing image URLs (editing case), pass them as JSON so backend keeps them
       if ((formData.imageFiles || []).length === 0 && Array.isArray(formData.images)) {
         payload.append('images', JSON.stringify(formData.images));
       }
 
       if (editingRoom) {
         await updateRoom(editingRoom.id, payload);
+        showToast('Room updated successfully!', 'success');
       } else {
         await createRoom(payload);
+        showToast('Room created successfully!', 'success');
       }
 
       setShowRoomForm(false);
       setEditingRoom(null);
       resetForm();
+      setFormErrors({});
       loadRooms();
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to save room');
+      showToast(err.response?.data?.error || 'Failed to save room', 'error');
     }
   };
 
@@ -191,12 +251,8 @@ const OwnerDashboard = () => {
       description: room.description,
       address: room.address,
       city: room.city,
-      state: room.state,
-      zipCode: room.zipCode,
       monthly_rent: room.monthly_rent.toString(),
-      bedrooms: room.bedrooms.toString(),
-      bathrooms: room.bathrooms.toString(),
-      area: room.area?.toString() || '',
+      bedrooms: room.bedrooms?.toString() || '1',
       amenities: room.amenities,
       images: Array.isArray(room.images) ? room.images : (room.images ? room.images.split(',').map(s => s.trim()) : []),
       imageFiles: [],
@@ -232,12 +288,8 @@ const OwnerDashboard = () => {
       description: '',
       address: '',
       city: '',
-      state: '',
-      zipCode: '',
       monthly_rent: '',
       bedrooms: '1',
-      bathrooms: '1',
-      area: '',
       amenities: '',
       images: [],
       isAvailable: true,
@@ -258,15 +310,18 @@ const OwnerDashboard = () => {
 
   if (user?.ownerStatus !== 'APPROVED') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="bg-white p-8 rounded-lg shadow text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Account Pending Approval</h2>
-          <p className="text-gray-600 mb-4">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Clock className="h-8 w-8 text-amber-600" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Account Pending Approval</h2>
+          <p className="text-gray-600 mb-6">
             Your owner account is pending approval from the administrator.
           </p>
           <button
             onClick={handleLogout}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            className="w-full bg-gray-900 text-white px-4 py-2.5 rounded-lg hover:bg-gray-800 transition-colors font-medium"
           >
             Logout
           </button>
@@ -277,192 +332,228 @@ const OwnerDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow">
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-5 py-3 rounded-lg shadow-lg flex items-center gap-2 ${
+          toast.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'
+        }`}>
+          {toast.type === 'success' ? (
+            <Check className="h-5 w-5" />
+          ) : (
+            <X className="h-5 w-5" />
+          )}
+          <span className="font-medium">{toast.message}</span>
+        </div>
+      )}
+
+      {/* Navigation */}
+      <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold text-gray-900">Owner Dashboard</h1>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-gray-900 rounded-lg flex items-center justify-center">
+                <Building2 className="h-5 w-5 text-white" />
+              </div>
+              <h1 className="text-lg font-semibold text-gray-900">Owner Dashboard</h1>
             </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-gray-700">Welcome, {user?.name || user?.email}</span>
+            <div className="flex items-center gap-3">
+              <span className="hidden sm:block text-sm text-gray-600">
+                {user?.name || user?.email}
+              </span>
               <button
                 onClick={() => {
                   resetForm();
                   setEditingRoom(null);
-                  setShowRoomForm(true);
+                  setShowRoomForm(!showRoomForm);
                 }}
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors"
               >
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="h-4 w-4" />
                 Add Room
               </button>
               <button
                 onClick={handleLogout}
-                className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
-                Logout
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline">Logout</span>
               </button>
             </div>
           </div>
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        {/* Room Form */}
         {showRoomForm && (
-          <div className="bg-white shadow rounded-lg p-6 mb-6">
-            <h2 className="text-xl font-bold mb-4">
-              {editingRoom ? 'Edit Room' : 'Add New Room'}
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Title</label>
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {editingRoom ? 'Edit Room' : 'Add New Room'}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowRoomForm(false);
+                  setEditingRoom(null);
+                  resetForm();
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-700">Title <span className="text-red-500">*</span></label>
                   <input
                     type="text"
                     name="title"
-                    required
                     value={formData.title}
                     onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                    placeholder="Enter room title"
+                    className={`w-full px-4 py-2.5 border rounded-lg outline-none transition-all ${
+                      formErrors.title
+                        ? 'border-red-500 focus:ring-2 focus:ring-red-200'
+                        : 'border-gray-300 focus:ring-2 focus:ring-gray-200 focus:border-gray-400'
+                    }`}
                   />
+                  {formErrors.title && <p className="text-sm text-red-500">{formErrors.title}</p>}
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Monthly Rent (NPR)</label>
-                  <input
-                    type="number"
-                    name="monthly_rent"
-                    required
-                    step="0.01"
-                    value={formData.monthly_rent}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-                  />
+                
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-700">Monthly Rent (NPR) <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      name="monthly_rent"
+                      step="0.01"
+                      value={formData.monthly_rent}
+                      onChange={handleChange}
+                      placeholder="0.00"
+                      className={`w-full px-4 pr-4 py-2.5 border rounded-lg outline-none transition-all ${
+                        formErrors.monthly_rent
+                          ? 'border-red-500 focus:ring-2 focus:ring-red-200'
+                          : 'border-gray-300 focus:ring-2 focus:ring-gray-200 focus:border-gray-400'
+                      }`}
+                    />
+                  </div>
+                  {formErrors.monthly_rent && <p className="text-sm text-red-500">{formErrors.monthly_rent}</p>}
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Address</label>
-                  <input
-                    type="text"
-                    name="address"
-                    required
-                    value={formData.address}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-                  />
+                
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-700">Address <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <input
+                      type="text"
+                      name="address"
+                      value={formData.address}
+                      onChange={handleChange}
+                      placeholder="Enter full address"
+                      className={`w-full pl-10 pr-4 py-2.5 border rounded-lg outline-none transition-all ${
+                        formErrors.address
+                          ? 'border-red-500 focus:ring-2 focus:ring-red-200'
+                          : 'border-gray-300 focus:ring-2 focus:ring-gray-200 focus:border-gray-400'
+                      }`}
+                    />
+                  </div>
+                  {formErrors.address && <p className="text-sm text-red-500">{formErrors.address}</p>}
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">City</label>
+                
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-700">City <span className="text-red-500">*</span></label>
                   <input
                     type="text"
                     name="city"
-                    required
                     value={formData.city}
                     onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                    placeholder="Enter city"
+                    className={`w-full px-4 py-2.5 border rounded-lg outline-none transition-all ${
+                      formErrors.city
+                        ? 'border-red-500 focus:ring-2 focus:ring-red-200'
+                        : 'border-gray-300 focus:ring-2 focus:ring-gray-200 focus:border-gray-400'
+                    }`}
                   />
+                  {formErrors.city && <p className="text-sm text-red-500">{formErrors.city}</p>}
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">State</label>
-                  <input
-                    type="text"
-                    name="state"
-                    required
-                    value={formData.state}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-                  />
+                
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-700">Bedrooms <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <Bed className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <input
+                      type="number"
+                      name="bedrooms"
+                      value={formData.bedrooms}
+                      onChange={handleChange}
+                      placeholder="1"
+                      className={`w-full pl-10 pr-4 py-2.5 border rounded-lg outline-none transition-all ${
+                        formErrors.bedrooms
+                          ? 'border-red-500 focus:ring-2 focus:ring-red-200'
+                          : 'border-gray-300 focus:ring-2 focus:ring-gray-200 focus:border-gray-400'
+                      }`}
+                    />
+                  </div>
+                  {formErrors.bedrooms && <p className="text-sm text-red-500">{formErrors.bedrooms}</p>}
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Zip Code</label>
-                  <input
-                    type="text"
-                    name="zipCode"
-                    required
-                    value={formData.zipCode}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Bedrooms</label>
-                  <input
-                    type="number"
-                    name="bedrooms"
-                    required
-                    value={formData.bedrooms}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Bathrooms</label>
-                  <input
-                    type="number"
-                    name="bathrooms"
-                    required
-                    step="0.5"
-                    value={formData.bathrooms}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Area (sq ft)</label>
-                  <input
-                    type="number"
-                    name="area"
-                    step="0.01"
-                    value={formData.area}
-                    onChange={handleChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-                  />
-                </div>
-                <div className="flex items-center">
+                
+                <div className="flex items-center pt-6">
                   <input
                     type="checkbox"
                     name="isAvailable"
                     checked={formData.isAvailable}
                     onChange={handleChange}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    className="h-4 w-4 text-gray-900 focus:ring-gray-500 border-gray-300 rounded cursor-pointer"
                   />
-                  <label className="ml-2 block text-sm text-gray-700">Available</label>
+                  <label className="ml-3 text-sm text-gray-700 cursor-pointer">Room is available for booking</label>
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Description</label>
+              
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-gray-700">Description <span className="text-red-500">*</span></label>
                 <textarea
                   name="description"
-                  required
                   rows="3"
                   value={formData.description}
                   onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                  placeholder="Describe your room in detail..."
+                  className={`w-full px-4 py-2.5 border rounded-lg outline-none transition-all resize-none ${
+                    formErrors.description
+                      ? 'border-red-500 focus:ring-2 focus:ring-red-200'
+                      : 'border-gray-300 focus:ring-2 focus:ring-gray-200 focus:border-gray-400'
+                  }`}
                 />
+                {formErrors.description && <p className="text-sm text-red-500">{formErrors.description}</p>}
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Amenities (comma-separated)</label>
+              
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-gray-700">Amenities</label>
                 <input
                   type="text"
                   name="amenities"
                   value={formData.amenities}
                   onChange={handleChange}
-                  placeholder="WiFi, Parking, AC, etc."
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                  placeholder="WiFi, Parking, AC, Kitchen, etc."
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-400 transition-all"
                 />
               </div>
-              <div>
+              
+              <div className="space-y-3">
                 <label className="block text-sm font-medium text-gray-700">Images</label>
-
-                <div className="flex items-center space-x-2">
-                  <button type="button" onClick={handleAttachClick} className="bg-gray-200 text-gray-800 px-3 py-1 rounded hover:bg-gray-300">
-                    Attach Image
+                
+                <div className="flex items-center gap-3">
+                  <button type="button" onClick={handleAttachClick} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium">
+                    Choose File
                   </button>
                   {attachedFileName ? (
-                    <div className="text-sm text-gray-700">
-                      Selected: <span className="font-medium">{attachedFileName}</span>
-                      <button type="button" onClick={removeAttached} className="ml-3 text-red-500 text-sm">Remove</button>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-600">{attachedFileName}</span>
+                      <button type="button" onClick={removeAttached} className="text-red-500 hover:text-red-700 text-sm font-medium">Remove</button>
                     </div>
                   ) : (
-                    <div className="text-sm text-gray-500">No file selected</div>
+                    <span className="text-sm text-gray-500">No file chosen</span>
                   )}
                 </div>
 
@@ -474,45 +565,33 @@ const OwnerDashboard = () => {
                   onChange={handleAttachSelect}
                 />
 
-                <div className="mt-2">
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
                   <input
                     type="file"
                     name="images"
                     accept="image/*"
                     multiple
                     onChange={handleFileSelect}
-                    className="mt-1 block w-full"
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 cursor-pointer"
                   />
-                  <p className="text-xs text-gray-500 mt-1">You can select multiple images or paste image URLs in the box below.</p>
+                  <p className="text-xs text-gray-500 mt-2">Upload multiple images</p>
                 </div>
 
-                <div className="mt-2 flex space-x-2 overflow-x-auto">
-                  {formData.images && formData.images.length > 0 && (
-                    formData.images.map((img, idx) => (
-                      <div key={idx} className="relative">
-                        <img src={img} alt={`preview-${idx}`} className="h-20 w-28 object-cover rounded mr-2" />
-                        <button type="button" onClick={() => removeImage(idx)} className="absolute top-0 right-0 bg-red-500 text-white text-xs px-1 rounded">x</button>
+                {formData.images && formData.images.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {formData.images.map((img, idx) => (
+                      <div key={idx} className="relative group">
+                        <img src={img} alt={`preview-${idx}`} className="h-20 w-28 object-cover rounded-lg" />
+                        <button type="button" onClick={() => removeImage(idx)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600">
+                          ×
+                        </button>
                       </div>
-                    ))
-                  )}
-                </div>
-
-                <input
-                  type="text"
-                  name="images"
-                  value={Array.isArray(formData.images) ? formData.images.filter(Boolean).join(', ') : formData.images}
-                  onChange={(e) => setFormData({ ...formData, images: e.target.value })}
-                  placeholder="Or paste image URLs, comma-separated"
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-                />
-              </div> 
-              <div className="flex space-x-4">
-                <button
-                  type="submit"
-                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                >
-                  {editingRoom ? 'Update Room' : 'Create Room'}
-                </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
                 <button
                   type="button"
                   onClick={() => {
@@ -520,109 +599,87 @@ const OwnerDashboard = () => {
                     setEditingRoom(null);
                     resetForm();
                   }}
-                  className="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400"
+                  className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm"
                 >
                   Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium text-sm"
+                >
+                  {editingRoom ? 'Update Room' : 'Create Room'}
                 </button>
               </div>
             </form>
           </div>
         )}
 
+        {/* Rooms Grid */}
         {loading ? (
-          <div className="text-center py-8">Loading...</div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div>
+          </div>
+        ) : rooms.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {rooms.map((room) => (
-              <div key={room.id} className="bg-white rounded-lg shadow overflow-hidden">
+              <div key={room.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow relative">
                 {(room.images && (Array.isArray(room.images) ? room.images.length > 0 : room.images)) && (
                   <img
-                    src={Array.isArray(room.images) ? (room.images[0] || 'https://via.placeholder.com/400x300') : (room.images.split(',')[0].trim() || 'https://via.placeholder.com/400x300')}
+                    src={Array.isArray(room.images) ? (room.images[0] || 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400&h=250&fit=crop') : (room.images.split(',')[0].trim() || 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400&h=250&fit=crop')}
                     alt={room.title}
-                    className="w-full h-48 object-cover"
+                    className="w-full h-44 object-cover"
                   />
-                )} 
-                <div className="p-6">
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">{room.title}</h3>
-                  <p className="text-gray-600 text-sm mb-4 line-clamp-2">{room.description}</p>
-                  <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-                    <span>{room.city}, {room.state}</span>
-                    <span className="font-bold text-blue-600">${room.monthly_rent}/month</span>
+                )}
+                {room.bookings && room.bookings.filter(b => b.status === 'PENDING').length > 0 && (
+                  <div className="absolute top-3 right-3 flex items-center gap-1 px-3 py-1.5 bg-red-500 text-white rounded-full shadow-lg">
+                    <Bell className="h-4 w-4" />
+                    <span className="text-xs font-semibold">{room.bookings.filter(b => b.status === 'PENDING').length}</span>
                   </div>
-                  <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-                    <span>{room.bedrooms} bed • {room.bathrooms} bath</span>
-                    <span className={room.isAvailable ? 'text-green-600' : 'text-red-600'}>
+                )}
+                <div className="p-5">
+                  <div className="flex items-start justify-between mb-3">
+                    <h3 className="text-base font-semibold text-gray-900 line-clamp-1">{room.title}</h3>
+                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                      room.isAvailable ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                    }`}>
                       {room.isAvailable ? 'Available' : 'Unavailable'}
                     </span>
                   </div>
-
-                  {/* Additional metadata */}
-                  <div className="text-sm text-gray-600 mb-4">
-                    <p className="mb-1"><strong>Address:</strong> {room.address}, {room.city}, {room.state} {room.zipCode}</p>
-                    <p className="mb-1"><strong>Area:</strong> {room.area ? `${room.area}` : 'N/A'}</p>
-                    <p className="mb-1">
-                      <strong>Amenities:</strong> {typeof room.amenities === 'string' ? room.amenities : Array.isArray(room.amenities) ? room.amenities.join(', ') : ''}
-                    </p>
-                    <p className="mb-1"><strong>Status:</strong> <span className={room.status === 'APPROVED' ? 'text-green-600' : room.status === 'REJECTED' ? 'text-red-600' : 'text-yellow-800'}>{room.status}</span></p>
-                    <p className="text-xs text-gray-500"><strong>Created:</strong> {room.createdAt ? new Date(room.createdAt).toLocaleString() : ''}</p>
-                  </div>
                   
-                  {room.bookings && room.bookings.length > 0 && (
-                    <div className="border-t pt-4 mt-4">
-                      <h4 className="font-medium text-gray-900 mb-2 flex items-center">
-                        <Calendar className="h-4 w-4 mr-2" />
-                        Rent Requests ({room.bookings.length})
-                      </h4>
-                      <div className="space-y-2">
-                        {room.bookings.slice(0, 3).map((booking) => (
-                          <div key={booking.id} className="text-sm bg-gray-50 p-2 rounded">
-                            <p className="font-medium">{booking.tenant.name || booking.tenant.email}</p>
-                            <p className="text-gray-600">
-                              {booking.start_month} to {booking.end_month}
-                            </p>
-                            <p className="text-gray-600">${booking.totalAmount}</p>
-                            <div className="mt-2 flex space-x-2">
-                              {booking.status === 'PENDING' && (
-                                <>
-                                  <button
-                                    onClick={() => handleBookingStatus(booking.id, 'CONFIRMED')}
-                                    className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700"
-                                  >
-                                    Confirm
-                                  </button>
-                                  <button
-                                    onClick={() => handleBookingStatus(booking.id, 'CANCELLED')}
-                                    className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700"
-                                  >
-                                    Cancel
-                                  </button>
-                                </>
-                              )}
-                              <span className={`text-xs px-2 py-1 rounded ${
-                                booking.status === 'CONFIRMED' ? 'bg-green-100 text-green-800' :
-                                booking.status === 'CANCELLED' ? 'bg-red-100 text-red-800' :
-                                'bg-yellow-100 text-yellow-800'
-                              }`}>
-                                {booking.status}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                      <span className="line-clamp-1">{room.address}, {room.city}</span>
                     </div>
-                  )}
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <Bed className="h-4 w-4 text-gray-400" />
+                        <span>{room.bedrooms} bedroom</span>
+                      </div>
+                      <span className="font-semibold text-gray-900">NPR {room.monthly_rent}/mo</span>
+                    </div>
+                  </div>
 
-                  <div className="flex space-x-2 mt-4">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setSelectedRoom(room);
+                        setIsModalOpen(true);
+                      }}
+                      className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+                    >
+                      <Eye className="h-4 w-4" />
+                      View
+                    </button>
                     <button
                       onClick={() => handleEdit(room)}
-                      className="flex-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center justify-center"
+                      className="flex items-center justify-center gap-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
                     >
-                      <Edit className="h-4 w-4 mr-2" />
-                      Edit
+                      <Edit className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => handleDelete(room.id)}
-                      className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 flex items-center justify-center"
+                      className="flex items-center justify-center gap-1 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -631,19 +688,113 @@ const OwnerDashboard = () => {
               </div>
             ))}
           </div>
-        )}
-
-        {!loading && rooms.length === 0 && (
-          <div className="text-center py-12">
-            <Home className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No rooms</h3>
-            <p className="mt-1 text-sm text-gray-500">Get started by creating a new room.</p>
+        ) : (
+          <div className="text-center py-20">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Home className="h-8 w-8 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No rooms yet</h3>
+            <p className="text-gray-500 mb-4">Get started by adding your first room</p>
+            <button
+              onClick={() => setShowRoomForm(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium"
+            >
+              <Plus className="h-4 w-4" />
+              Add Room
+            </button>
           </div>
         )}
       </div>
+
+      {/* Room Detail Modal */}
+      {isModalOpen && selectedRoom && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-5 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
+              <h2 className="text-lg font-semibold text-gray-900">{selectedRoom.title}</h2>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="p-5 space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <MapPin className="h-4 w-4 text-gray-400" />
+                  <span>{selectedRoom.address}, {selectedRoom.city}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <span className="font-medium text-gray-400">NPR</span>
+                  <span className="font-semibold text-gray-900">{selectedRoom.monthly_rent}/month</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Bed className="h-4 w-4 text-gray-400" />
+                  <span>{selectedRoom.bedrooms} bedroom</span>
+                </div>
+                {selectedRoom.amenities && (
+                  <p className="text-sm text-gray-600">
+                    <span className="font-medium">Amenities:</span> {typeof selectedRoom.amenities === 'string' ? selectedRoom.amenities : Array.isArray(selectedRoom.amenities) ? selectedRoom.amenities.join(', ') : 'None'}
+                  </p>
+                )}
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Status:</span> <span className={selectedRoom.isAvailable ? 'text-emerald-600' : 'text-red-600'}>{selectedRoom.isAvailable ? 'Available' : 'Unavailable'}</span>
+                </p>
+                <p className="text-xs text-gray-400">Created: {selectedRoom.createdAt ? new Date(selectedRoom.createdAt).toLocaleDateString() : ''}</p>
+              </div>
+
+              {selectedRoom.bookings && selectedRoom.bookings.length > 0 && (
+                <div className="border-t border-gray-200 pt-4">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Rent Requests ({selectedRoom.bookings.length})
+                  </h3>
+                  <div className="space-y-3">
+                    {selectedRoom.bookings.map((booking) => (
+                      <div key={booking.id} className="p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-sm font-medium text-gray-900">{booking.tenant.name || booking.tenant.email}</p>
+                          <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                            booking.status === 'CONFIRMED' ? 'bg-emerald-100 text-emerald-700' :
+                            booking.status === 'CANCELLED' ? 'bg-red-100 text-red-700' :
+                            'bg-amber-100 text-amber-700'
+                          }`}>
+                            {booking.status}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-600">
+                          {booking.start_month} to {booking.end_month}
+                        </p>
+                        <p className="text-sm font-semibold text-gray-900 mt-1">NPR {booking.totalAmount}</p>
+                        {booking.status === 'PENDING' && (
+                          <div className="flex gap-2 mt-2">
+                            <button
+                              onClick={() => handleBookingStatus(booking.id, 'CONFIRMED')}
+                              className="px-3 py-1 text-xs font-medium text-white bg-emerald-600 rounded hover:bg-emerald-700 transition-colors"
+                            >
+                              Confirm
+                            </button>
+                            <button
+                              onClick={() => handleBookingStatus(booking.id, 'CANCELLED')}
+                              className="px-3 py-1 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default OwnerDashboard;
-

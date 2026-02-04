@@ -34,28 +34,45 @@ export async function createRoom(req, res, next) {
     }
     const imagesToStore = uploadedFilenames.length > 0 ? uploadedFilenames : bodyImages;
 
-    if (!title || !description || !address || !city || !state || !zipCode || !monthly_rent) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    // Required fields from frontend: title, description, address, city, monthly_rent
+    if (!title || !description || !address || !city || !monthly_rent) {
+      return res.status(400).json({ error: 'Missing required fields: title, description, address, city, monthly_rent' });
     }
 
-    const room = await prisma.room.create({
-      data: {
-        title,
-        description,
-        address,
-        city,
-        state,
-        zipCode,
-        monthly_rent: parseFloat(monthly_rent),
-        bedrooms: parseInt(bedrooms) || 1,
-        bathrooms: parseFloat(bathrooms) || 1,
-        area: area ? parseFloat(area) : null,
-        amenities: amenities || '',
-        images: imagesToStore,
-        ownerId,
-        updatedAt: new Date(),
-      },
-    });
+    // Normalize amenities: try parse JSON, otherwise split CSV into array
+    let amenitiesToStore = null;
+    if (amenities !== undefined && amenities !== null && amenities !== '') {
+      if (typeof amenities === 'string') {
+        try {
+          amenitiesToStore = JSON.parse(amenities);
+        } catch (e) {
+          amenitiesToStore = amenities.split(',').map(s => s.trim()).filter(Boolean);
+        }
+      } else {
+        amenitiesToStore = amenities;
+      }
+    }
+
+    const createData = {
+      title,
+      description,
+      address,
+      city,
+      monthly_rent: parseFloat(monthly_rent),
+      bedrooms: parseInt(bedrooms) || 1,
+      bathrooms: bathrooms ? parseFloat(bathrooms) : null,
+      area: area ? parseFloat(area) : null,
+      images: imagesToStore,
+      ownerId,
+      updatedAt: new Date(),
+    };
+
+    // Include optional fields only when provided
+    if (state) createData.state = state;
+    if (zipCode) createData.zipCode = zipCode;
+    if (amenitiesToStore !== null) createData.amenities = amenitiesToStore;
+
+    const room = await prisma.room.create({ data: createData });
 
     return res.status(201).json(room);
   } catch (err) {
