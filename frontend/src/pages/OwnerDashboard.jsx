@@ -20,6 +20,7 @@ const OwnerDashboard = () => {
   const [formErrors, setFormErrors] = useState({});
   const [toast, setToast] = useState(null);
   const [formExpanded, setFormExpanded] = useState({});
+  const [updatingBookings, setUpdatingBookings] = useState({});
 
   const [formData, setFormData] = useState({
     title: '',
@@ -91,6 +92,14 @@ const OwnerDashboard = () => {
   useEffect(() => {
     loadRooms();
   }, []);
+
+  useEffect(() => {
+    if (!selectedRoom) return;
+    const updated = rooms.find((room) => room.id === selectedRoom.id);
+    if (updated && updated !== selectedRoom) {
+      setSelectedRoom(updated);
+    }
+  }, [rooms, selectedRoom]);
 
   const loadRooms = async () => {
     try {
@@ -273,12 +282,45 @@ const OwnerDashboard = () => {
     }
   };
 
+  const updateRoomBookingState = (room, bookingId, status) => {
+    if (!room?.bookings || room.bookings.length === 0) return room;
+    const updatedBookings = room.bookings.map((booking) =>
+      booking.id === bookingId ? { ...booking, status } : booking
+    );
+
+    let isAvailable = room.isAvailable;
+    if (status === 'CONFIRMED') {
+      isAvailable = false;
+    } else if (status === 'CANCELLED' || status === 'COMPLETED') {
+      const hasActiveBooking = updatedBookings.some(
+        (booking) => booking.id !== bookingId && (booking.status === 'PENDING' || booking.status === 'CONFIRMED')
+      );
+      if (!hasActiveBooking) {
+        isAvailable = true;
+      }
+    }
+
+    return { ...room, bookings: updatedBookings, isAvailable };
+  };
+
   const handleBookingStatus = async (bookingId, status) => {
+    setUpdatingBookings((prev) => ({ ...prev, [bookingId]: true }));
     try {
       await updateBookingStatus(bookingId, status);
-      loadRooms();
+      setRooms((prevRooms) =>
+        prevRooms.map((room) => updateRoomBookingState(room, bookingId, status))
+      );
+      setSelectedRoom((prevRoom) =>
+        prevRoom ? updateRoomBookingState(prevRoom, bookingId, status) : prevRoom
+      );
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to update booking status');
+    } finally {
+      setUpdatingBookings((prev) => {
+        const next = { ...prev };
+        delete next[bookingId];
+        return next;
+      });
     }
   };
 
@@ -310,10 +352,10 @@ const OwnerDashboard = () => {
 
   if (user?.ownerStatus !== 'APPROVED') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
-          <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Clock className="h-8 w-8 text-amber-600" />
+      <div className="page flex items-center justify-center p-4">
+        <div className="card p-8 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Clock className="h-8 w-8 text-orange-600" />
           </div>
           <h2 className="text-xl font-bold text-gray-900 mb-2">Account Pending Approval</h2>
           <p className="text-gray-600 mb-6">
@@ -321,7 +363,7 @@ const OwnerDashboard = () => {
           </p>
           <button
             onClick={handleLogout}
-            className="w-full bg-gray-900 text-white px-4 py-2.5 rounded-lg hover:bg-gray-800 transition-colors font-medium"
+            className="btn-primary w-full"
           >
             Logout
           </button>
@@ -331,7 +373,7 @@ const OwnerDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="page">
       {/* Toast Notification */}
       {toast && (
         <div className={`fixed top-4 right-4 z-50 px-5 py-3 rounded-lg shadow-lg flex items-center gap-2 ${
@@ -347,17 +389,17 @@ const OwnerDashboard = () => {
       )}
 
       {/* Navigation */}
-      <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
+        <div className="page-container">
           <div className="flex justify-between h-16">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-gray-900 rounded-lg flex items-center justify-center">
+              <div className="w-9 h-9 bg-orange-500 rounded-lg flex items-center justify-center">
                 <Building2 className="h-5 w-5 text-white" />
               </div>
               <h1 className="text-lg font-semibold text-gray-900">Owner Dashboard</h1>
             </div>
             <div className="flex items-center gap-3">
-              <span className="hidden sm:block text-sm text-gray-600">
+              <span className="hidden sm:block text-sm text-gray-600 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-full">
                 {user?.name || user?.email}
               </span>
               <button
@@ -366,14 +408,14 @@ const OwnerDashboard = () => {
                   setEditingRoom(null);
                   setShowRoomForm(!showRoomForm);
                 }}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors"
+                className="btn-primary text-sm"
               >
                 <Plus className="h-4 w-4" />
                 Add Room
               </button>
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                className="btn-secondary text-sm"
               >
                 <LogOut className="h-4 w-4" />
                 <span className="hidden sm:inline">Logout</span>
@@ -383,10 +425,10 @@ const OwnerDashboard = () => {
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <div className="page-container py-8">
         {/* Room Form */}
         {showRoomForm && (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-8">
+          <div className="card p-6 mb-8">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-gray-900">
                 {editingRoom ? 'Edit Room' : 'Add New Room'}
@@ -413,11 +455,7 @@ const OwnerDashboard = () => {
                     value={formData.title}
                     onChange={handleChange}
                     placeholder="Enter room title"
-                    className={`w-full px-4 py-2.5 border rounded-lg outline-none transition-all ${
-                      formErrors.title
-                        ? 'border-red-500 focus:ring-2 focus:ring-red-200'
-                        : 'border-gray-300 focus:ring-2 focus:ring-gray-200 focus:border-gray-400'
-                    }`}
+                    className={`input ${formErrors.title ? 'border-rose-300 focus:ring-rose-200 focus:border-rose-400' : ''}`}
                   />
                   {formErrors.title && <p className="text-sm text-red-500">{formErrors.title}</p>}
                 </div>
@@ -432,11 +470,7 @@ const OwnerDashboard = () => {
                       value={formData.monthly_rent}
                       onChange={handleChange}
                       placeholder="0.00"
-                      className={`w-full px-4 pr-4 py-2.5 border rounded-lg outline-none transition-all ${
-                        formErrors.monthly_rent
-                          ? 'border-red-500 focus:ring-2 focus:ring-red-200'
-                          : 'border-gray-300 focus:ring-2 focus:ring-gray-200 focus:border-gray-400'
-                      }`}
+                      className={`input ${formErrors.monthly_rent ? 'border-rose-300 focus:ring-rose-200 focus:border-rose-400' : ''}`}
                     />
                   </div>
                   {formErrors.monthly_rent && <p className="text-sm text-red-500">{formErrors.monthly_rent}</p>}
@@ -452,11 +486,7 @@ const OwnerDashboard = () => {
                       value={formData.address}
                       onChange={handleChange}
                       placeholder="Enter full address"
-                      className={`w-full pl-10 pr-4 py-2.5 border rounded-lg outline-none transition-all ${
-                        formErrors.address
-                          ? 'border-red-500 focus:ring-2 focus:ring-red-200'
-                          : 'border-gray-300 focus:ring-2 focus:ring-gray-200 focus:border-gray-400'
-                      }`}
+                      className={`input pl-10 ${formErrors.address ? 'border-rose-300 focus:ring-rose-200 focus:border-rose-400' : ''}`}
                     />
                   </div>
                   {formErrors.address && <p className="text-sm text-red-500">{formErrors.address}</p>}
@@ -470,11 +500,7 @@ const OwnerDashboard = () => {
                     value={formData.city}
                     onChange={handleChange}
                     placeholder="Enter city"
-                    className={`w-full px-4 py-2.5 border rounded-lg outline-none transition-all ${
-                      formErrors.city
-                        ? 'border-red-500 focus:ring-2 focus:ring-red-200'
-                        : 'border-gray-300 focus:ring-2 focus:ring-gray-200 focus:border-gray-400'
-                    }`}
+                    className={`input ${formErrors.city ? 'border-rose-300 focus:ring-rose-200 focus:border-rose-400' : ''}`}
                   />
                   {formErrors.city && <p className="text-sm text-red-500">{formErrors.city}</p>}
                 </div>
@@ -489,11 +515,7 @@ const OwnerDashboard = () => {
                       value={formData.bedrooms}
                       onChange={handleChange}
                       placeholder="1"
-                      className={`w-full pl-10 pr-4 py-2.5 border rounded-lg outline-none transition-all ${
-                        formErrors.bedrooms
-                          ? 'border-red-500 focus:ring-2 focus:ring-red-200'
-                          : 'border-gray-300 focus:ring-2 focus:ring-gray-200 focus:border-gray-400'
-                      }`}
+                      className={`input pl-10 ${formErrors.bedrooms ? 'border-rose-300 focus:ring-rose-200 focus:border-rose-400' : ''}`}
                     />
                   </div>
                   {formErrors.bedrooms && <p className="text-sm text-red-500">{formErrors.bedrooms}</p>}
@@ -505,7 +527,7 @@ const OwnerDashboard = () => {
                     name="isAvailable"
                     checked={formData.isAvailable}
                     onChange={handleChange}
-                    className="h-4 w-4 text-gray-900 focus:ring-gray-500 border-gray-300 rounded cursor-pointer"
+                    className="h-4 w-4 text-orange-500 focus:ring-orange-200 border-gray-300 rounded cursor-pointer"
                   />
                   <label className="ml-3 text-sm text-gray-700 cursor-pointer">Room is available for booking</label>
                 </div>
@@ -519,11 +541,7 @@ const OwnerDashboard = () => {
                   value={formData.description}
                   onChange={handleChange}
                   placeholder="Describe your room in detail..."
-                  className={`w-full px-4 py-2.5 border rounded-lg outline-none transition-all resize-none ${
-                    formErrors.description
-                      ? 'border-red-500 focus:ring-2 focus:ring-red-200'
-                      : 'border-gray-300 focus:ring-2 focus:ring-gray-200 focus:border-gray-400'
-                  }`}
+                  className={`input resize-none ${formErrors.description ? 'border-rose-300 focus:ring-rose-200 focus:border-rose-400' : ''}`}
                 />
                 {formErrors.description && <p className="text-sm text-red-500">{formErrors.description}</p>}
               </div>
@@ -536,7 +554,7 @@ const OwnerDashboard = () => {
                   value={formData.amenities}
                   onChange={handleChange}
                   placeholder="WiFi, Parking, AC, Kitchen, etc."
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-400 transition-all"
+                  className="input"
                 />
               </div>
               
@@ -544,13 +562,13 @@ const OwnerDashboard = () => {
                 <label className="block text-sm font-medium text-gray-700">Images</label>
                 
                 <div className="flex items-center gap-3">
-                  <button type="button" onClick={handleAttachClick} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium">
+                  <button type="button" onClick={handleAttachClick} className="btn-secondary text-sm px-4 py-2">
                     Choose File
                   </button>
                   {attachedFileName ? (
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-gray-600">{attachedFileName}</span>
-                      <button type="button" onClick={removeAttached} className="text-red-500 hover:text-red-700 text-sm font-medium">Remove</button>
+                      <button type="button" onClick={removeAttached} className="text-rose-600 hover:text-rose-700 text-sm font-medium">Remove</button>
                     </div>
                   ) : (
                     <span className="text-sm text-gray-500">No file chosen</span>
@@ -565,14 +583,14 @@ const OwnerDashboard = () => {
                   onChange={handleAttachSelect}
                 />
 
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                <div className="border-2 border-dashed border-slate-200 rounded-lg p-4">
                   <input
                     type="file"
                     name="images"
                     accept="image/*"
                     multiple
                     onChange={handleFileSelect}
-                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 cursor-pointer"
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer"
                   />
                   <p className="text-xs text-gray-500 mt-2">Upload multiple images</p>
                 </div>
@@ -582,7 +600,7 @@ const OwnerDashboard = () => {
                     {formData.images.map((img, idx) => (
                       <div key={idx} className="relative group">
                         <img src={img} alt={`preview-${idx}`} className="h-20 w-28 object-cover rounded-lg" />
-                        <button type="button" onClick={() => removeImage(idx)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600">
+                        <button type="button" onClick={() => removeImage(idx)} className="absolute -top-2 -right-2 bg-rose-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity hover:bg-rose-600">
                           ×
                         </button>
                       </div>
@@ -591,7 +609,7 @@ const OwnerDashboard = () => {
                 )}
               </div>
               
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => {
@@ -599,13 +617,13 @@ const OwnerDashboard = () => {
                     setEditingRoom(null);
                     resetForm();
                   }}
-                  className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm"
+                  className="btn-secondary text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium text-sm"
+                  className="btn-primary text-sm"
                 >
                   {editingRoom ? 'Update Room' : 'Create Room'}
                 </button>
@@ -617,12 +635,12 @@ const OwnerDashboard = () => {
         {/* Rooms Grid */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div>
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500"></div>
           </div>
         ) : rooms.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {rooms.map((room) => (
-              <div key={room.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow relative">
+              <div key={room.id} className="card overflow-hidden hover:shadow-md transition-shadow relative">
                 {(room.images && (Array.isArray(room.images) ? room.images.length > 0 : room.images)) && (
                   <img
                     src={Array.isArray(room.images) ? (room.images[0] || 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400&h=250&fit=crop') : (room.images.split(',')[0].trim() || 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400&h=250&fit=crop')}
@@ -631,7 +649,7 @@ const OwnerDashboard = () => {
                   />
                 )}
                 {room.bookings && room.bookings.filter(b => b.status === 'PENDING').length > 0 && (
-                  <div className="absolute top-3 right-3 flex items-center gap-1 px-3 py-1.5 bg-red-500 text-white rounded-full shadow-lg">
+                  <div className="absolute top-3 right-3 flex items-center gap-1 px-3 py-1.5 bg-rose-500 text-white rounded-full shadow-lg">
                     <Bell className="h-4 w-4" />
                     <span className="text-xs font-semibold">{room.bookings.filter(b => b.status === 'PENDING').length}</span>
                   </div>
@@ -666,20 +684,20 @@ const OwnerDashboard = () => {
                         setSelectedRoom(room);
                         setIsModalOpen(true);
                       }}
-                      className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+                      className="btn-secondary flex-1 text-sm"
                     >
                       <Eye className="h-4 w-4" />
                       View
                     </button>
                     <button
                       onClick={() => handleEdit(room)}
-                      className="flex items-center justify-center gap-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+                      className="btn-secondary text-sm"
                     >
                       <Edit className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => handleDelete(room.id)}
-                      className="flex items-center justify-center gap-1 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium"
+                      className="btn-danger text-sm"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -690,14 +708,14 @@ const OwnerDashboard = () => {
           </div>
         ) : (
           <div className="text-center py-20">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Home className="h-8 w-8 text-gray-400" />
+            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Home className="h-8 w-8 text-slate-400" />
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">No rooms yet</h3>
             <p className="text-gray-500 mb-4">Get started by adding your first room</p>
             <button
               onClick={() => setShowRoomForm(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium"
+              className="btn-primary text-sm"
             >
               <Plus className="h-4 w-4" />
               Add Room
@@ -709,8 +727,8 @@ const OwnerDashboard = () => {
       {/* Room Detail Modal */}
       {isModalOpen && selectedRoom && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-5 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-5 border-b border-slate-200 flex items-center justify-between sticky top-0 bg-white">
               <h2 className="text-lg font-semibold text-gray-900">{selectedRoom.title}</h2>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -746,14 +764,14 @@ const OwnerDashboard = () => {
               </div>
 
               {selectedRoom.bookings && selectedRoom.bookings.length > 0 && (
-                <div className="border-t border-gray-200 pt-4">
+                <div className="border-t border-slate-200 pt-4">
                   <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
                     <Calendar className="h-4 w-4" />
                     Rent Requests ({selectedRoom.bookings.length})
                   </h3>
                   <div className="space-y-3">
                     {selectedRoom.bookings.map((booking) => (
-                      <div key={booking.id} className="p-3 bg-gray-50 rounded-lg">
+                      <div key={booking.id} className="p-3 bg-slate-50 rounded-lg">
                         <div className="flex items-center justify-between mb-2">
                           <p className="text-sm font-medium text-gray-900">{booking.tenant.name || booking.tenant.email}</p>
                           <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
@@ -772,13 +790,15 @@ const OwnerDashboard = () => {
                           <div className="flex gap-2 mt-2">
                             <button
                               onClick={() => handleBookingStatus(booking.id, 'CONFIRMED')}
-                              className="px-3 py-1 text-xs font-medium text-white bg-emerald-600 rounded hover:bg-emerald-700 transition-colors"
+                              disabled={Boolean(updatingBookings[booking.id])}
+                              className="btn-primary text-xs px-3 py-1 disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                               Confirm
                             </button>
                             <button
                               onClick={() => handleBookingStatus(booking.id, 'CANCELLED')}
-                              className="px-3 py-1 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 transition-colors"
+                              disabled={Boolean(updatingBookings[booking.id])}
+                              className="btn-secondary text-xs px-3 py-1 text-rose-700 border-rose-200 hover:bg-rose-50 disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                               Cancel
                             </button>

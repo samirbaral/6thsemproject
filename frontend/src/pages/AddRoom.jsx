@@ -84,8 +84,8 @@ const AddRoom = ({ room, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-8 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm overflow-y-auto h-full w-full z-50">
+      <div className="relative top-20 mx-auto p-8 w-full max-w-2xl card">
         <h2 className="text-2xl font-bold mb-4">{room ? 'Edit Room' : 'Add Room'}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -97,7 +97,7 @@ const AddRoom = ({ room, onClose }) => {
                 required
                 value={formData.title}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                className="input mt-1"
               />
             </div>
             <div>
@@ -109,7 +109,7 @@ const AddRoom = ({ room, onClose }) => {
                 step="0.01"
                 value={formData.monthly_rent}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                className="input mt-1"
               />
             </div>
             <div>
@@ -120,7 +120,7 @@ const AddRoom = ({ room, onClose }) => {
                 required
                 value={formData.address}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                className="input mt-1"
               />
             </div>
             <div>
@@ -131,7 +131,7 @@ const AddRoom = ({ room, onClose }) => {
                 required
                 value={formData.city}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                className="input mt-1"
               />
             </div>
             <div>
@@ -141,7 +141,7 @@ const AddRoom = ({ room, onClose }) => {
                 name="bedrooms"
                 value={formData.bedrooms}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                className="input mt-1"
               />
             </div>
             <div>
@@ -152,7 +152,7 @@ const AddRoom = ({ room, onClose }) => {
                 step="0.5"
                 value={formData.bathrooms}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                className="input mt-1"
               />
             </div>
             <div>
@@ -163,7 +163,7 @@ const AddRoom = ({ room, onClose }) => {
                 required
                 value={formData.ownerId}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                className="input mt-1"
               />
             </div>
             <div className="flex items-center">
@@ -172,7 +172,7 @@ const AddRoom = ({ room, onClose }) => {
                 name="isAvailable"
                 checked={formData.isAvailable}
                 onChange={handleChange}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                className="h-4 w-4 text-orange-500 focus:ring-orange-200 border-gray-300 rounded"
               />
               <label className="ml-2 block text-sm text-gray-700">Available</label>
             </div>
@@ -185,7 +185,7 @@ const AddRoom = ({ room, onClose }) => {
               rows="3"
               value={formData.description}
               onChange={handleChange}
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+              className="input mt-1"
             />
           </div>
           <div>
@@ -196,7 +196,7 @@ const AddRoom = ({ room, onClose }) => {
               value={formData.amenities}
               onChange={handleChange}
               placeholder="WiFi, Parking, AC, etc."
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+              className="input mt-1"
             />
           </div>
           <div>
@@ -207,7 +207,7 @@ const AddRoom = ({ room, onClose }) => {
               multiple
               accept="image/*"
               onChange={handleImageChange}
-              className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100"
             />
             {selectedImages.length > 0 && (
               <div className="mt-2 text-sm text-gray-600">
@@ -224,14 +224,14 @@ const AddRoom = ({ room, onClose }) => {
             <button
               type="submit"
               disabled={loading}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Saving...' : (room ? 'Update' : 'Create')}
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400"
+              className="btn-secondary"
             >
               Cancel
             </button>

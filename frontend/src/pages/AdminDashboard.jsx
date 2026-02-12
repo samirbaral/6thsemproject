@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getPendingOwners, approveOwner, rejectOwner, getStats, getPendingRooms, approveRoom, rejectRoom } from '../services/adminService';
 import { signout } from '../services/authService';
 import { clearAuth, getUser } from '../utils/auth';
-import { Users, Home, Calendar, Clock, CheckCircle, XCircle, Building2, BarChart3, LogOut, ChevronRight } from 'lucide-react';
+import { Users, Home, Calendar, Clock, CheckCircle, XCircle, Building2, BarChart3, LogOut, ChevronRight, MapPin } from 'lucide-react';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -19,12 +19,20 @@ const AdminDashboard = () => {
 
   const loadData = async () => {
     try {
-      const ownersRes = await getPendingOwners();
-      const statsRes = await getStats();
-      const roomsRes = await getPendingRooms();
-      setPendingOwners(ownersRes.data);
-      setStats(statsRes.data);
-      setPendingRooms(roomsRes.data);
+      const [ownersRes, statsRes, roomsRes] = await Promise.allSettled([
+        getPendingOwners(),
+        getStats(),
+        getPendingRooms(),
+      ]);
+      if (ownersRes.status === 'fulfilled') {
+        setPendingOwners(ownersRes.value.data);
+      }
+      if (statsRes.status === 'fulfilled') {
+        setStats(statsRes.value.data);
+      }
+      if (roomsRes.status === 'fulfilled') {
+        setPendingRooms(roomsRes.value.data);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -69,18 +77,18 @@ const AdminDashboard = () => {
   };
 
   const handleLogout = async () => {
+    clearAuth();
+    navigate('/login');
     try {
       await signout();
     } catch (err) {
       console.error(err);
     }
-    clearAuth();
-    navigate('/login');
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="page flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-slate-700"></div>
           <span className="text-slate-600 font-medium">Loading dashboard...</span>
@@ -90,25 +98,25 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="page">
       {/* Navigation */}
       <nav className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="page-container">
           <div className="flex justify-between h-16">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-slate-800 rounded-lg flex items-center justify-center">
+              <div className="w-9 h-9 bg-orange-500 rounded-lg flex items-center justify-center">
                 <BarChart3 className="h-5 w-5 text-white" />
               </div>
               <h1 className="text-lg font-semibold text-slate-800">Admin Dashboard</h1>
             </div>
             <div className="flex items-center gap-4">
-              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-full">
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-full border border-slate-200">
                 <span className="text-sm text-slate-600">Welcome,</span>
                 <span className="text-sm font-medium text-slate-800">{user?.name || user?.email}</span>
               </div>
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-slate-800 rounded-lg hover:bg-slate-900 transition-colors"
+                className="btn-primary text-sm"
               >
                 <LogOut className="h-4 w-4" />
                 Logout
@@ -118,51 +126,51 @@ const AdminDashboard = () => {
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <div className="page-container py-8">
         {/* Stats Grid */}
         {stats && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 hover:shadow-md transition-shadow">
+            <div className="card p-5 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-slate-500">Total Users</p>
                   <p className="text-2xl font-bold text-slate-800 mt-1">{stats.totalUsers}</p>
                 </div>
-                <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
-                  <Users className="h-6 w-6 text-blue-600" />
+                <div className="w-12 h-12 bg-orange-50 rounded-lg flex items-center justify-center">
+                  <Users className="h-6 w-6 text-orange-600" />
                 </div>
               </div>
             </div>
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 hover:shadow-md transition-shadow">
+            <div className="card p-5 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-slate-500">Total Rooms</p>
                   <p className="text-2xl font-bold text-slate-800 mt-1">{stats.totalRooms}</p>
                 </div>
-                <div className="w-12 h-12 bg-emerald-50 rounded-lg flex items-center justify-center">
-                  <Home className="h-6 w-6 text-emerald-600" />
+                <div className="w-12 h-12 bg-orange-50 rounded-lg flex items-center justify-center">
+                  <Home className="h-6 w-6 text-orange-600" />
                 </div>
               </div>
             </div>
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 hover:shadow-md transition-shadow">
+            <div className="card p-5 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-slate-500">Total Bookings</p>
                   <p className="text-2xl font-bold text-slate-800 mt-1">{stats.totalBookings}</p>
                 </div>
-                <div className="w-12 h-12 bg-purple-50 rounded-lg flex items-center justify-center">
-                  <Calendar className="h-6 w-6 text-purple-600" />
+                <div className="w-12 h-12 bg-orange-50 rounded-lg flex items-center justify-center">
+                  <Calendar className="h-6 w-6 text-orange-600" />
                 </div>
               </div>
             </div>
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 hover:shadow-md transition-shadow">
+            <div className="card p-5 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-slate-500">Pending Owners</p>
                   <p className="text-2xl font-bold text-slate-800 mt-1">{stats.pendingOwners}</p>
                 </div>
-                <div className="w-12 h-12 bg-amber-50 rounded-lg flex items-center justify-center">
-                  <Clock className="h-6 w-6 text-amber-600" />
+                <div className="w-12 h-12 bg-orange-50 rounded-lg flex items-center justify-center">
+                  <Clock className="h-6 w-6 text-orange-600" />
                 </div>
               </div>
             </div>
@@ -171,14 +179,14 @@ const AdminDashboard = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Pending Owners */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+          <div className="card overflow-hidden">
+            <div className="card-header flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Users className="h-5 w-5 text-slate-600" />
                 <h3 className="text-base font-semibold text-slate-800">Pending Owner Approvals</h3>
               </div>
               {pendingOwners.length > 0 && (
-                <span className="px-2.5 py-0.5 bg-amber-100 text-amber-700 text-xs font-medium rounded-full">
+                <span className="px-2.5 py-0.5 bg-orange-100 text-orange-700 text-xs font-medium rounded-full">
                   {pendingOwners.length} pending
                 </span>
               )}
@@ -209,14 +217,14 @@ const AdminDashboard = () => {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleApprove(owner.id)}
-                        className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-emerald-700 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors"
+                        className="btn-soft text-sm"
                       >
                         <CheckCircle className="h-4 w-4" />
                         Approve
                       </button>
                       <button
                         onClick={() => handleReject(owner.id)}
-                        className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                        className="btn-secondary text-sm text-rose-700 border-rose-200 hover:bg-rose-50"
                       >
                         <XCircle className="h-4 w-4" />
                         Reject
@@ -229,14 +237,14 @@ const AdminDashboard = () => {
           </div>
 
           {/* Pending Rooms */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+          <div className="card overflow-hidden">
+            <div className="card-header flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Building2 className="h-5 w-5 text-slate-600" />
                 <h3 className="text-base font-semibold text-slate-800">Pending Room Approvals</h3>
               </div>
               {pendingRooms.length > 0 && (
-                <span className="px-2.5 py-0.5 bg-amber-100 text-amber-700 text-xs font-medium rounded-full">
+                <span className="px-2.5 py-0.5 bg-orange-100 text-orange-700 text-xs font-medium rounded-full">
                   {pendingRooms.length} pending
                 </span>
               )}
@@ -274,14 +282,14 @@ const AdminDashboard = () => {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleApproveRoom(room.id)}
-                          className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-emerald-700 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors"
+                          className="btn-soft text-sm"
                         >
                           <CheckCircle className="h-4 w-4" />
                           Approve
                         </button>
                         <button
                           onClick={() => handleRejectRoom(room.id)}
-                          className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                          className="btn-secondary text-sm text-rose-700 border-rose-200 hover:bg-rose-50"
                         >
                           <XCircle className="h-4 w-4" />
                           Reject

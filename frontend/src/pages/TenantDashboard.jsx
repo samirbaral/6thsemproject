@@ -56,6 +56,9 @@ const TenantDashboard = () => {
   };
 
   const handleFilterChange = (e) => {
+    if (activeTab === 'rooms') {
+      setLoading(true);
+    }
     setFilters({ ...filters, [e.target.name]: e.target.value });
   };
 
@@ -108,24 +111,24 @@ const TenantDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="page">
       {/* Navigation */}
-      <nav className="bg-white shadow-sm sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
+        <div className="page-container">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-gray-900 rounded-lg flex items-center justify-center">
+              <div className="w-9 h-9 bg-orange-500 rounded-lg flex items-center justify-center">
                 <Home className="h-5 w-5 text-white" />
               </div>
               <h1 className="text-lg font-semibold text-gray-900">RoomFinder</h1>
             </div>
             <div className="flex items-center gap-3">
-              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-full">
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-full">
                 <span className="text-sm font-medium text-gray-700">{user?.name || user?.email}</span>
               </div>
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                className="btn-secondary text-sm"
               >
                 <LogOut className="h-4 w-4" />
                 <span className="hidden sm:inline">Logout</span>
@@ -135,7 +138,7 @@ const TenantDashboard = () => {
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <div className="page-container py-8">
         {/* Tabs */}
         <div className="flex gap-2 mb-6">
           <button
@@ -145,8 +148,8 @@ const TenantDashboard = () => {
             }}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-all ${
               activeTab === 'rooms'
-                ? 'bg-gray-900 text-white shadow-md'
-                : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                ? 'bg-orange-500 text-white shadow-sm'
+                : 'bg-white text-gray-700 hover:bg-gray-50 border border-slate-200'
             }`}
           >
             <Search className="h-4 w-4" />
@@ -159,8 +162,8 @@ const TenantDashboard = () => {
             }}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-all ${
               activeTab === 'bookings'
-                ? 'bg-gray-900 text-white shadow-md'
-                : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                ? 'bg-orange-500 text-white shadow-sm'
+                : 'bg-white text-gray-700 hover:bg-gray-50 border border-slate-200'
             }`}
           >
             <Calendar className="h-4 w-4" />
@@ -175,7 +178,7 @@ const TenantDashboard = () => {
 
         {/* Filters */}
         {activeTab === 'rooms' && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+          <div className="card p-4 mb-6">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="relative">
                 <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -185,23 +188,27 @@ const TenantDashboard = () => {
                   value={filters.city}
                   onChange={handleFilterChange}
                   placeholder="City"
-                  className="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-200 focus:border-gray-400 outline-none transition-all"
+                  className="input pl-10 text-sm"
                 />
               </div>
               <div className="relative">
                 <input
+                  type="number"
+                  name="minPrice"
                   value={filters.minPrice}
                   onChange={handleFilterChange}
                   placeholder="Min price"
-                  className="w-full px-4 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-200 focus:border-gray-400 outline-none transition-all"
+                  className="input text-sm"
                 />
               </div>
               <div className="relative">
                 <input
+                  type="number"
+                  name="maxPrice"
                   value={filters.maxPrice}
                   onChange={handleFilterChange}
                   placeholder="Max price"
-                  className="w-full px-4 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-200 focus:border-gray-400 outline-none transition-all"
+                  className="input text-sm"
                 />
               </div>
               <div className="relative">
@@ -212,7 +219,7 @@ const TenantDashboard = () => {
                   value={filters.bedrooms}
                   onChange={handleFilterChange}
                   placeholder="Bedrooms"
-                  className="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-200 focus:border-gray-400 outline-none transition-all"
+                  className="input pl-10 text-sm"
                 />
               </div>
             </div>
@@ -224,12 +231,12 @@ const TenantDashboard = () => {
           <>
             {loading ? (
               <div className="flex items-center justify-center py-20">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div>
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500"></div>
               </div>
             ) : rooms.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                 {rooms.map((room) => (
-                  <div key={room.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all">
+                  <div key={room.id} className="card overflow-hidden hover:shadow-md transition-all">
                     <div className="relative h-44 overflow-hidden">
                       {room.images && ((Array.isArray(room.images) && room.images.length > 0) || (typeof room.images === 'string' && room.images.trim())) ? (
                         <img
@@ -269,7 +276,7 @@ const TenantDashboard = () => {
                       
                       <button
                         onClick={() => handleBookRoom(room)}
-                        className="w-full flex items-center justify-center gap-1 px-3 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium"
+                        className="btn-primary w-full text-sm"
                       >
                         Book Now
                         <ChevronRight className="h-4 w-4" />
@@ -279,7 +286,7 @@ const TenantDashboard = () => {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-20 bg-white rounded-xl shadow-sm border border-gray-200">
+              <div className="text-center py-20 card">
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Home className="h-8 w-8 text-gray-400" />
                 </div>
@@ -295,12 +302,12 @@ const TenantDashboard = () => {
           <>
             {loading ? (
               <div className="flex items-center justify-center py-20">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div>
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500"></div>
               </div>
             ) : bookings.length > 0 ? (
               <div className="space-y-4">
                 {bookings.map((booking) => (
-                  <div key={booking.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                  <div key={booking.id} className="card overflow-hidden">
                     <div className="p-5">
                       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                         <div className="flex-1">
@@ -339,7 +346,7 @@ const TenantDashboard = () => {
                           {booking.status !== 'CANCELLED' && booking.status !== 'COMPLETED' && (
                             <button
                               onClick={() => handleCancelBooking(booking.id)}
-                              className="text-sm text-red-600 hover:text-red-800 font-medium transition-colors"
+                              className="text-sm text-rose-600 hover:text-rose-700 font-medium transition-colors"
                             >
                               Cancel Request
                             </button>
@@ -351,7 +358,7 @@ const TenantDashboard = () => {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-20 bg-white rounded-xl shadow-sm border border-gray-200">
+              <div className="text-center py-20 card">
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Calendar className="h-8 w-8 text-gray-400" />
                 </div>
@@ -362,7 +369,7 @@ const TenantDashboard = () => {
                     setActiveTab('rooms');
                     setLoading(true);
                   }}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium"
+                  className="btn-primary text-sm"
                 >
                   Browse Rooms
                 </button>
@@ -375,8 +382,8 @@ const TenantDashboard = () => {
       {/* Booking Modal */}
       {showBookingForm && selectedRoom && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
-            <div className="p-5 border-b border-gray-200 flex items-center justify-between">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full">
+            <div className="p-5 border-b border-slate-200 flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Request to Rent</h3>
                 <p className="text-sm text-gray-500 mt-0.5">{selectedRoom.title}</p>
@@ -405,7 +412,7 @@ const TenantDashboard = () => {
                   min={new Date().toISOString().slice(0, 7)}
                   value={bookingData.start_month}
                   onChange={(e) => setBookingData({ ...bookingData, start_month: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-200 focus:border-gray-400 outline-none transition-all"
+                  className="input"
                 />
               </div>
               
@@ -420,7 +427,7 @@ const TenantDashboard = () => {
                   min={bookingData.start_month || new Date().toISOString().slice(0, 7)}
                   value={bookingData.end_month}
                   onChange={(e) => setBookingData({ ...bookingData, end_month: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-200 focus:border-gray-400 outline-none transition-all"
+                  className="input"
                 />
                 <p className="mt-1.5 text-xs text-gray-500 flex items-center gap-1">
                   <Clock className="h-3 w-3" />
@@ -431,7 +438,7 @@ const TenantDashboard = () => {
               <div className="flex gap-3 pt-2">
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium text-sm"
+                  className="btn-primary flex-1 text-sm"
                 >
                   Submit Request
                 </button>
@@ -442,7 +449,7 @@ const TenantDashboard = () => {
                     setSelectedRoom(null);
                     setBookingData({ start_month: '', end_month: '' });
                   }}
-                  className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm"
+                  className="btn-secondary flex-1 text-sm"
                 >
                   Cancel
                 </button>
